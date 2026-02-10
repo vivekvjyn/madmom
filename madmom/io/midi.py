@@ -295,7 +295,7 @@ class MIDIFile(mido.MidiFile):
             tempi.insert(0, (0, DEFAULT_TEMPO))
         # tempo is given in microseconds per quarter note
         # TODO: add otption to return in BPM
-        return np.asarray(tempi, np.float)
+        return np.asarray(tempi, np.float64)
 
     @property
     def time_signatures(self):
@@ -323,7 +323,7 @@ class MIDIFile(mido.MidiFile):
             signatures.insert(0, (0, DEFAULT_TIME_SIGNATURE[0],
                                   DEFAULT_TIME_SIGNATURE[1]))
         # return time signatures
-        return np.asarray(signatures, dtype=np.float)
+        return np.asarray(signatures, dtype=np.float64)
 
     @property
     def notes(self):
@@ -373,7 +373,7 @@ class MIDIFile(mido.MidiFile):
                 del sounding_notes[note]
 
         # sort the notes and convert to numpy array
-        return np.asarray(sorted(notes), dtype=np.float)
+        return np.asarray(sorted(notes), dtype=np.float64)
 
     @classmethod
     def from_notes(cls, notes, unit='seconds', tempo=DEFAULT_TEMPO,

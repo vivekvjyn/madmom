@@ -39,8 +39,8 @@ CHORD_DTYPE = [('root', np.int),
                ('bass', np.int),
                ('intervals', np.int, (12,))]
 
-CHORD_ANN_DTYPE = [('start', np.float),
-                   ('end', np.float),
+CHORD_ANN_DTYPE = [('start', np.float64),
+                   ('end', np.float64),
                    ('chord', CHORD_DTYPE)]
 
 NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
@@ -398,7 +398,7 @@ def score_root(det_chords, ann_chords):
         Similarity score for each chord.
 
     """
-    return (ann_chords['root'] == det_chords['root']).astype(np.float)
+    return (ann_chords['root'] == det_chords['root']).astype(np.float64)
 
 
 def score_exact(det_chords, ann_chords):

@@ -69,7 +69,7 @@ def transition_distribution(interval, interval_sigma):
     """
     from scipy.stats import norm
 
-    move_range = np.arange(interval * 2, dtype=np.float)
+    move_range = np.arange(interval * 2, dtype=np.float64)
     # to avoid floating point hell due to np.log2(0)
     move_range[0] = 0.000001
 

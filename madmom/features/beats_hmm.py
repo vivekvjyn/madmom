@@ -258,8 +258,8 @@ def exponential_transition(from_intervals, to_intervals, transition_lambda,
         return np.diag(np.diag(np.ones((len(from_intervals),
                                         len(to_intervals)))))
     # compute the transition probabilities
-    ratio = (to_intervals.astype(np.float) /
-             from_intervals.astype(np.float)[:, np.newaxis])
+    ratio = (to_intervals.astype(np.float64) /
+             from_intervals.astype(np.float64)[:, np.newaxis])
     prob = np.exp(-transition_lambda * abs(ratio - 1.))
     # set values below threshold to 0
     prob[prob <= threshold] = 0
@@ -305,7 +305,7 @@ class BeatTransitionModel(TransitionModel):
         states = np.arange(state_space.num_states, dtype=np.uint32)
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
-        probabilities = np.ones_like(states, dtype=np.float)
+        probabilities = np.ones_like(states, dtype=np.float64)
         # tempo transitions occur at the boundary between beats
         # Note: connect the beat state space with itself, the transitions from
         #       the last states to the first states follow an exponential tempo
@@ -377,7 +377,7 @@ class BarTransitionModel(TransitionModel):
         states = np.arange(state_space.num_states, dtype=np.uint32)
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
-        probabilities = np.ones_like(states, dtype=np.float)
+        probabilities = np.ones_like(states, dtype=np.float64)
         # tempo transitions occur at the boundary between beats (unless the
         # corresponding transition_lambda is set to None)
         for beat in range(state_space.num_beats):
@@ -559,7 +559,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
 
         """
         # init densities
-        log_densities = np.empty((len(observations), 2), dtype=np.float)
+        log_densities = np.empty((len(observations), 2), dtype=np.float64)
         # Note: it's faster to call np.log 2 times instead of once on the
         #       whole 2d array
         log_densities[:, 0] = np.log((1. - observations) /
@@ -623,7 +623,7 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
 
         """
         # init densities
-        log_densities = np.empty((len(observations), 3), dtype=np.float)
+        log_densities = np.empty((len(observations), 3), dtype=np.float64)
         # Note: it's faster to call np.log multiple times instead of once on
         #       the whole 2d array
         log_densities[:, 0] = np.log((1. - np.sum(observations, axis=1)) /
@@ -705,7 +705,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         # number of GMMs of all patterns
         num_gmms = sum([len(pattern) for pattern in self.pattern_files])
         # init the densities
-        log_densities = np.empty((len(observations), num_gmms), dtype=np.float)
+        log_densities = np.empty((len(observations), num_gmms), dtype=np.float64)
         # define the observation densities
         i = 0
         for pattern in self.pattern_files:

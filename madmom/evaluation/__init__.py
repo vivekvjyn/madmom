@@ -36,8 +36,8 @@ def find_closest_matches(detections, annotations):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=np.float64)
+    annotations = np.asarray(annotations, dtype=np.float64)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
@@ -84,8 +84,8 @@ def calc_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=np.float64)
+    annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
         matches = np.asarray(matches, dtype=np.int)
     # TODO: right now, it only works with 1D arrays
@@ -94,7 +94,7 @@ def calc_errors(detections, annotations, matches=None):
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=np.float64)
     # determine the closest annotations
     if matches is None:
         matches = find_closest_matches(detections, annotations)
@@ -129,8 +129,8 @@ def calc_absolute_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=np.float64)
+    annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
         matches = np.asarray(matches, dtype=np.int)
     # TODO: right now, it only works with 1D arrays
@@ -165,8 +165,8 @@ def calc_relative_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=np.float64)
+    annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
         matches = np.asarray(matches, dtype=np.int)
     # TODO: right now, it only works with 1D arrays
@@ -175,7 +175,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=np.float64)
     # determine the closest annotations
     if matches is None:
         matches = find_closest_matches(detections, annotations)
@@ -425,10 +425,10 @@ class Evaluation(SimpleEvaluation):
         # instantiate a SimpleEvaluation object
         super(Evaluation, self).__init__(**kwargs)
         # convert everything to numpy arrays and save them
-        self.tp = np.asarray(list(tp), dtype=np.float)
-        self.fp = np.asarray(list(fp), dtype=np.float)
-        self.tn = np.asarray(list(tn), dtype=np.float)
-        self.fn = np.asarray(list(fn), dtype=np.float)
+        self.tp = np.asarray(list(tp), dtype=np.float64)
+        self.fp = np.asarray(list(fp), dtype=np.float64)
+        self.tn = np.asarray(list(tn), dtype=np.float64)
+        self.fn = np.asarray(list(fn), dtype=np.float64)
 
     @property
     def num_tp(self):
@@ -487,10 +487,10 @@ class MultiClassEvaluation(Evaluation):
         if fn is None:
             fn = np.zeros((0, 2))
         super(MultiClassEvaluation, self).__init__(**kwargs)
-        self.tp = np.asarray(tp, dtype=np.float)
-        self.fp = np.asarray(fp, dtype=np.float)
-        self.tn = np.asarray(tn, dtype=np.float)
-        self.fn = np.asarray(fn, dtype=np.float)
+        self.tp = np.asarray(tp, dtype=np.float64)
+        self.fp = np.asarray(fp, dtype=np.float64)
+        self.tn = np.asarray(tn, dtype=np.float64)
+        self.fn = np.asarray(fn, dtype=np.float64)
 
     def tostring(self, verbose=False, **kwargs):
         """

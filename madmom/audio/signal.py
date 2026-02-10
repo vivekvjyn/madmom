@@ -352,8 +352,8 @@ def energy(signal):
     if np.iscomplex(signal).any():
         signal = np.abs(signal)
     # Note: type conversion needed because of integer overflows
-    if signal.dtype != np.float:
-        signal = signal.astype(np.float)
+    if signal.dtype != np.float64:
+        signal = signal.astype(np.float64)
     # return energy
     return np.dot(signal.flatten(), signal.flatten())
 

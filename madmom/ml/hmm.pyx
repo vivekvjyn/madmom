@@ -201,7 +201,7 @@ class TransitionModel(object):
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
-        probabilities = transitions.data.astype(dtype=np.float)
+        probabilities = transitions.data.astype(dtype=np.float64)
         # return them
         return states, pointers, probabilities
 
@@ -439,7 +439,7 @@ class HiddenMarkovModel(object):
         self.observation_model = observation_model
         if initial_distribution is None:
             initial_distribution = np.ones(transition_model.num_states,
-                                           dtype=np.float) / \
+                                           dtype=np.float64) / \
                                    transition_model.num_states
         if not np.allclose(initial_distribution.sum(), 1):
             raise ValueError('Initial distribution is not a probability '
@@ -509,7 +509,7 @@ class HiddenMarkovModel(object):
 
         # current viterbi variables
         cdef double [::1] current_viterbi = np.empty(num_states,
-                                                     dtype=np.float)
+                                                     dtype=np.float64)
 
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
@@ -627,7 +627,7 @@ class HiddenMarkovModel(object):
         # forward variables
         cdef double[::1] fwd_prev = self._prev
         cdef double[:, ::1] fwd = np.zeros((num_observations, num_states),
-                                           dtype=np.float)
+                                           dtype=np.float64)
 
         # define counters etc.
         cdef unsigned int prev_pointer, frame, state
