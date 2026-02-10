@@ -10,7 +10,6 @@ This module contains tempo evaluation functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
-
 import numpy as np
 
 from . import EvaluationMixin, MeanEvaluation, evaluation_io
@@ -38,8 +37,7 @@ def sort_tempo(tempo):
         Tempi sorted according to their strength.
 
     """
-    if not isinstance(tempo, np.ndarray):
-        tempo = np.array(tempo, ndmin=1)
+    tempo = np.array(tempo, copy=False, ndmin=1)
     if tempo.ndim != 2:
         raise ValueError('`tempo` has no strength information, cannot sort '
                          'them.')
@@ -107,8 +105,8 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     if float(tolerance) <= 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
-    detections = np.array(detections, dtype=float, ndmin=1)
-    annotations = np.array(annotations, dtype=float, ndmin=1)
+    detections = np.array(detections, dtype=np.float, ndmin=1)
+    annotations = np.array(annotations, dtype=np.float, ndmin=1)
     # extract the detected tempi, ignore the strengths
     if detections.ndim == 2:
         detections = detections[:, 0]
@@ -132,7 +130,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     # test all detected tempi against all annotated tempi
     errors = np.abs(1 - (detections[:, np.newaxis] / annotations))
     # correctly identified annotation tempi
-    correct = np.asarray(np.sum(errors <= tolerance, axis=0), bool)
+    correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
     # the P-Score is the sum of the strengths of the correctly identified tempi
     pscore = np.sum(strengths[correct])
     # return the scores
@@ -187,8 +185,8 @@ class TempoEvaluation(EvaluationMixin):
                  name=None, **kwargs):
         # pylint: disable=unused-argument
         # convert to numpy array
-        detections = np.array(detections, dtype=float, ndmin=1)
-        annotations = np.array(annotations, dtype=float, ndmin=1)
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
         if sort and detections.ndim == 2:
             detections = sort_tempo(detections)
         if sort and annotations.ndim == 2:

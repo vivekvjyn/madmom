@@ -85,96 +85,96 @@ class TestChordParsing(unittest.TestCase):
         self.assertEqual(interval('#b5'), 7)
         self.assertEqual(interval('b#b6'), 8)
 
-    def assert_intervals_equal(self, i1, i2):
+    def assertIntervalsEqual(self, i1, i2):
         self.assertTrue((i1 == i2).all())
 
     def test_interval_list(self):
         # test interval creation
-        self.assert_intervals_equal(
+        self.assertIntervalsEqual(
             interval_list('(1,3,5)'),
             np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]))
-        self.assert_intervals_equal(
+        self.assertIntervalsEqual(
             interval_list('(1,b3,5)'),
             np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]))
-        self.assert_intervals_equal(
+        self.assertIntervalsEqual(
             interval_list('(1,b3,5,b7)'),
             np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0]))
 
         # test interval subtraction
-        self.assert_intervals_equal(
+        self.assertIntervalsEqual(
             interval_list('(*3)',
                           np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
             np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]))
 
         # test interval addition
-        self.assert_intervals_equal(
+        self.assertIntervalsEqual(
             interval_list('(3, b7)',
                           np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])),
             np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]))
 
     def test_intervals(self):
         # test some common interval annotations
-        self.assert_intervals_equal(chord_intervals('maj'),
-                                    interval_list('(1,3,5)'))
-        self.assert_intervals_equal(chord_intervals('min'),
-                                    interval_list('(1,b3,5)'))
-        self.assert_intervals_equal(chord_intervals('maj7'),
-                                    interval_list('(1,3,5,7)'))
+        self.assertIntervalsEqual(chord_intervals('maj'),
+                                  interval_list('(1,3,5)'))
+        self.assertIntervalsEqual(chord_intervals('min'),
+                                  interval_list('(1,b3,5)'))
+        self.assertIntervalsEqual(chord_intervals('maj7'),
+                                  interval_list('(1,3,5,7)'))
 
         # test addition of intervals
-        self.assert_intervals_equal(chord_intervals('maj(7)'),
-                                    chord_intervals('maj7'))
-        self.assert_intervals_equal(chord_intervals('dim(bb7)'),
-                                    chord_intervals('dim7'))
+        self.assertIntervalsEqual(chord_intervals('maj(7)'),
+                                  chord_intervals('maj7'))
+        self.assertIntervalsEqual(chord_intervals('dim(bb7)'),
+                                  chord_intervals('dim7'))
 
         # test removal of intervals
-        self.assert_intervals_equal(chord_intervals('maj9(*9)'),
-                                    chord_intervals('maj7'))
-        self.assert_intervals_equal(chord_intervals('min7(*b7)'),
-                                    chord_intervals('min'))
+        self.assertIntervalsEqual(chord_intervals('maj9(*9)'),
+                                  chord_intervals('maj7'))
+        self.assertIntervalsEqual(chord_intervals('min7(*b7)'),
+                                  chord_intervals('min'))
 
         # test addition and removal of intervals
-        self.assert_intervals_equal(chord_intervals('maj(*3,2)'),
-                                    chord_intervals('sus2'))
-        self.assert_intervals_equal(chord_intervals('min(*b3,3,7)'),
-                                    chord_intervals('maj7'))
+        self.assertIntervalsEqual(chord_intervals('maj(*3,2)'),
+                                  chord_intervals('sus2'))
+        self.assertIntervalsEqual(chord_intervals('min(*b3,3,7)'),
+                                  chord_intervals('maj7'))
 
-    def assert_chord_equal(self, c1, c2):
+    def assertChordEqual(self, c1, c2):
         self.assertEqual(c1[0], c2[0])
         self.assertEqual(c1[1], c2[1])
-        self.assert_intervals_equal(c1[2], c2[2])
+        self.assertIntervalsEqual(c1[2], c2[2])
 
     def test_chord(self):
         # pitch explicit, intervals and bass implicit
-        self.assert_chord_equal(chord('C'),
-                                (pitch('C'), 0, chord_intervals('maj')))
+        self.assertChordEqual(chord('C'),
+                              (pitch('C'), 0, chord_intervals('maj')))
         # pitch and bass explicit, intervals implicit
-        self.assert_chord_equal(chord('G#b/5'),
-                                (pitch('G'), interval('5'),
-                                chord_intervals('maj')))
+        self.assertChordEqual(chord('G#b/5'),
+                              (pitch('G'), interval('5'),
+                               chord_intervals('maj')))
         # pitch and intervals in shorthand explicit, bass implicit
-        self.assert_chord_equal(chord('Cb:sus4'), (pitch('Cb'), 0,
-                                                   chord_intervals('sus4')))
+        self.assertChordEqual(chord('Cb:sus4'), (pitch('Cb'), 0,
+                                                 chord_intervals('sus4')))
         # pitch and intervals as list explicit, bass implicit
-        self.assert_chord_equal(chord('F:(1,3,5,9)'),
-                                (pitch('F'), 0, chord_intervals('(1,3,5,9)')))
+        self.assertChordEqual(chord('F:(1,3,5,9)'),
+                              (pitch('F'), 0, chord_intervals('(1,3,5,9)')))
         # pitch and intervals, both shorthand and list, explicit bass implicit
-        self.assert_chord_equal(chord('Db:min6(*b3)'),
-                                (pitch('Db'), 0, chord_intervals('(1,5,6)')))
+        self.assertChordEqual(chord('Db:min6(*b3)'),
+                              (pitch('Db'), 0, chord_intervals('(1,5,6)')))
         # everything explicit
-        self.assert_chord_equal(chord('A#:minmaj7/b3'),
-                                (pitch('A#'), interval('b3'),
-                                chord_intervals('minmaj7')))
+        self.assertChordEqual(chord('A#:minmaj7/b3'),
+                              (pitch('A#'), interval('b3'),
+                               chord_intervals('minmaj7')))
         # test no-chord and unknown-chord
-        self.assert_chord_equal(chord('N'), NO_CHORD)
-        self.assert_chord_equal(chord('X'), UNKNOWN_CHORD)
+        self.assertChordEqual(chord('N'), NO_CHORD)
+        self.assertChordEqual(chord('X'), UNKNOWN_CHORD)
 
     def test_chords(self):
         # test whether the chords() function creates a proper array of
         # chords
         labels = ['F', 'C:maj', 'D:(1,b3,5)', 'Bb:maj7']
         for lbl, crd in zip(labels, chords(labels)):
-            self.assert_chord_equal(chord(lbl), crd)
+            self.assertChordEqual(chord(lbl), crd)
 
     def test_encode_func(self):
         crds = encode(
@@ -197,19 +197,19 @@ class TestChordEvaluation(unittest.TestCase):
         self.ev_ann, self.ev_det, self.ev_dur = evaluation_pairs(self.det,
                                                                  self.ann)
 
-    def assert_intervals_equal(self, i1, i2):
+    def assertIntervalsEqual(self, i1, i2):
         self.assertTrue((i1 == i2).all())
 
-    def assert_chord_equal(self, c1, c2):
+    def assertChordEqual(self, c1, c2):
         self.assertEqual(c1[0], c2[0])
         self.assertEqual(c1[1], c2[1])
-        self.assert_intervals_equal(c1[2], c2[2])
+        self.assertIntervalsEqual(c1[2], c2[2])
 
     def test_adjust(self):
         self.assertAlmostEqual(self.det[0]['start'], self.ann[0]['start'])
         self.assertAlmostEqual(self.det[-1]['end'], self.ann[-1]['end'])
         # the last 'N' chord should have been removed
-        self.assert_chord_equal(self.det[-1]['chord'], chord('G:aug'))
+        self.assertChordEqual(self.det[-1]['chord'], chord('G:aug'))
 
         det = self.unadjusted_det.copy()
         # make detections shorter than annotations
@@ -220,7 +220,7 @@ class TestChordEvaluation(unittest.TestCase):
         self.assertAlmostEqual(det[0]['start'], self.ann[0]['start'])
         self.assertAlmostEqual(det[-1]['end'], self.ann[-1]['end'])
         # should have filled up the chord sequence with a no-chord
-        self.assert_chord_equal(det[-1]['chord'], chord('N'))
+        self.assertChordEqual(det[-1]['chord'], chord('N'))
 
     def test_evaluation_pairs(self):
         true_ev_ann, true_ev_det, true_ev_dur = zip(*[

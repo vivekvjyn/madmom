@@ -16,6 +16,5 @@ Submodules
    features/downbeats
    features/key
    features/notes
-   features/notes_hmm
    features/onsets
    features/tempo

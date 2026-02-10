@@ -10,11 +10,12 @@ This module contains onset detection related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from scipy.ndimage import maximum_filter, minimum_filter, uniform_filter
+from scipy.ndimage import uniform_filter
+from scipy.ndimage.filters import maximum_filter, minimum_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
-                          SequentialProcessor, )
+                          Processor, SequentialProcessor, )
 from ..utils import combine_events
 
 EPSILON = np.spacing(1)
@@ -963,6 +964,59 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         raise ValueError('`activations` must be either 1D or 2D')
 
 
+class PeakPickingProcessor(Processor):
+    """
+    Deprecated as of version 0.15. Will be removed in version 0.16. Use either
+    :class:`OnsetPeakPickingProcessor` or :class:`NotePeakPickingProcessor`
+    instead.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        self.kwargs = kwargs
+
+    def process(self, activations, **kwargs):
+        """
+        Detect the peaks in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        peaks : numpy array
+            Detected onsets [seconds[, frequency bin]].
+
+        """
+        import warnings
+        if activations.ndim == 1:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`OnsetPeakPickingProcessor` instead.')
+            ppp = OnsetPeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+        elif activations.ndim == 2:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`NotePeakPickingProcessor` instead.')
+            from .notes import NotePeakPickingProcessor
+            ppp = NotePeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+
+    @staticmethod
+    def add_arguments(parser, **kwargs):
+        """
+        Deprecated as of version 0.15. Will be removed in version 0.16. Use
+        either :class:`OnsetPeakPickingProcessor` or
+        :class:`NotePeakPickingProcessor` instead.
+
+        """
+        return OnsetPeakPickingProcessor.add_arguments(parser, **kwargs)
+
+
 class OnsetPeakPickingProcessor(OnlineProcessor):
     """
     This class implements the onset peak-picking functionality.
@@ -1096,7 +1150,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         # detect the peaks (function returns int indices)
         onsets = peak_picking(activations, self.threshold, *timings)
         # convert to timestamps
-        onsets = onsets.astype(float) / self.fps
+        onsets = onsets.astype(np.float) / self.fps
         # shift if necessary
         if self.delay:
             onsets += self.delay
@@ -1123,15 +1177,11 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
             Detected onsets [seconds].
 
         """
-        # cast as 1-dimensional array
-        # Note: in online mode, activations are just float values
-        if not isinstance(activations, np.ndarray):
-            activations = np.array(activations, ndmin=1)
         # buffer data
         if self.buffer is None or reset:
             # reset the processor
             self.reset()
-            # put 0s in front (depending on context given by pre_max
+            # put 0s in front (depending on conext given by pre_max
             init = np.zeros(int(np.round(self.pre_max * self.fps)))
             buffer = np.insert(activations, 0, init, axis=0)
             # offset the counter, because we buffer the activations

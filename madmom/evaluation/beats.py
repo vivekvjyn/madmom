@@ -28,14 +28,15 @@ References
 
 from __future__ import absolute_import, division, print_function
 
-import warnings
 from functools import wraps
+import warnings
 
 import numpy as np
 
 from . import (MeanEvaluation, calc_absolute_errors, calc_errors,
                evaluation_io, find_closest_matches)
 from .onsets import OnsetEvaluation
+from ..io import load_beats
 
 
 # exceptions
@@ -67,8 +68,8 @@ def array(metric):
     def float_array(detections, annotations, *args, **kwargs):
         """Warp detections and annotations as numpy arrays."""
         # make sure the annotations and detections have a float dtype
-        detections = np.asarray(detections, dtype=float)
-        annotations = np.asarray(annotations, dtype=float)
+        detections = np.asarray(detections, dtype=np.float)
+        annotations = np.asarray(annotations, dtype=np.float)
         return metric(detections, annotations, *args, **kwargs)
 
     return float_array
@@ -97,7 +98,7 @@ def _score_decorator(perfect_score, zero_score):
         def score(detections, annotations, *args, **kwargs):
             """
             Return perfect/zero score if neither/either detections and
-            annotations are given, respectively.
+            annotations are given, repsectively.
 
             """
             # neither detections nor annotations are given, perfect score
@@ -263,7 +264,7 @@ def find_closest_intervals(detections, annotations, matches=None):
     """
     # if no detection are given, return an empty interval array
     if len(detections) == 0:
-        return np.zeros(0, dtype=float)
+        return np.zeros(0, dtype=np.float)
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
@@ -353,7 +354,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     """
     # if no detection are given, return an empty interval array
     if len(detections) == 0:
-        return np.zeros(0, dtype=float)
+        return np.zeros(0, dtype=np.float)
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
@@ -805,7 +806,7 @@ def _error_histogram(detections, annotations, histogram_bins):
     # map the relative beat errors to the range of -0.5..0.5
     errors = np.mod(errors + 0.5, -1) + 0.5
     # get bin counts for the given errors over the distribution
-    histogram = np.histogram(errors, histogram_bins)[0].astype(float)
+    histogram = np.histogram(errors, histogram_bins)[0].astype(np.float)
     # make the histogram circular by adding the last bin to the first one
     histogram[0] += histogram[-1]
     # return the histogram without the last bin
@@ -828,7 +829,7 @@ def _entropy(error_histogram):
 
     """
     # copy the error_histogram, because it must not be altered
-    histogram = np.copy(error_histogram).astype(float)
+    histogram = np.copy(error_histogram).astype(np.float)
     # normalize the histogram
     histogram /= np.sum(histogram)
     # set all 0 values to 1 to make entropy calculation well-behaved
@@ -981,7 +982,7 @@ class BeatEvaluation(OnsetEvaluation):
     continuity_phase_tolerance : float, optional
         Continuity phase tolerance.
     continuity_tempo_tolerance : float, optional
-        Continuity tempo tolerance.
+        Ccontinuity tempo tolerance.
     information_gain_bins : int, optional
         Number of bins for for the information gain beat error histogram.
     offbeat : bool, optional
@@ -1025,21 +1026,18 @@ class BeatEvaluation(OnsetEvaluation):
                  offbeat=True, double=True, triple=True, skip=0,
                  downbeats=False, **kwargs):
         # convert to numpy array
-        detections = np.array(detections, dtype=float, ndmin=1)
-        annotations = np.array(annotations, dtype=float, ndmin=1)
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
         # use only the first column (i.e. the time stamp) or extract the
         # downbeats if these are 2D
         if detections.ndim > 1:
-            if downbeats and detections.any():
+            if downbeats:
                 detections = detections[detections[:, 1] == 1][:, 0]
             else:
                 detections = detections[:, 0]
         if annotations.ndim > 1:
-            if downbeats and annotations.any():
-                try:
-                    annotations = annotations[annotations[:, 1] == 1][:, 0]
-                except IndexError:
-                    annotations = np.empty(0)
+            if downbeats:
+                annotations = annotations[annotations[:, 1] == 1][:, 0]
             else:
                 annotations = annotations[:, 0]
         # sort them
@@ -1195,7 +1193,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=BeatEvaluation, sum_eval=None,
-                   mean_eval=BeatMeanEvaluation, load_fn=np.loadtxt)
+                   mean_eval=BeatMeanEvaluation, load_fn=load_beats)
     # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants

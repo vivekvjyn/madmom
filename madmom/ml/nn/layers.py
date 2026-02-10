@@ -11,10 +11,8 @@ This module contains neural network layers for the ml.nn module.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
-from scipy.ndimage import convolve as _scipy_convolve, maximum_filter
 
-from .activations import sigmoid, tanh
+from .activations import linear, sigmoid, tanh
 
 NN_DTYPE = np.float32
 
@@ -54,139 +52,6 @@ class Layer(object):
         return None
 
 
-class SequentialLayer(Layer):
-    """
-    SequentialLayer.
-
-    Parameters
-    ----------
-    layers : list
-        Activate these layers sequentially.
-
-    """
-
-    def __init__(self, layers):
-        self.layers = layers
-
-    def activate(self, data, **kwargs):
-        """
-        Activate all layers with the data sequentially.
-
-        Parameters
-        ----------
-        data : numpy arrays
-            Data with shape according to the first layer's input shape.
-
-        Returns
-        -------
-        data : numpy array
-            Activated data with shape according to the last layer's output
-            shape.
-
-        Notes
-        -----
-        The output of the first layer is fed into the second layer. The last
-        layer's output is returned.
-
-        """
-        # sequentially process the data
-        for layer in self.layers:
-            data = layer(data, **kwargs)
-        return data
-
-
-class ParallelLayer(Layer):
-    """
-    ParallelLayer.
-
-    Parameters
-    ----------
-    layers : list
-        Activate these layers in parallel.
-
-    """
-
-    def __init__(self, layers):
-        self.layers = layers
-
-    def activate(self, data, **kwargs):
-        """
-        Activate the data with the defined layers in parallel.
-
-        All layers are activated with the same input data.
-
-        Parameters
-        ----------
-        data : numpy arrays
-            Data with shape according to the layer's common input shape.
-
-        Returns
-        -------
-        data : list
-            List with activated data, dimensions according to each layer's
-            output shape.
-
-        """
-        # process the data with each layer in parallel
-        results = []
-        for layer in self.layers:
-            results.append(layer(data, **kwargs))
-        return results
-
-
-class MultiTaskLayer(Layer):
-    """
-    MultiTaskLayer.
-
-    Parameters
-    ----------
-    layers : list
-        Activate these layers individually.
-    mapping : dict, optional
-        Dict mapping layer indices to (input) data indices, i.e. which layer to
-        activate with which input.
-
-    """
-
-    def __init__(self, layers, mapping=None):
-        self.layers = layers
-        self.mapping = mapping
-
-    def activate(self, data, **kwargs):
-        """
-        Activate the defined layers with the data individually.
-
-        Parameters
-        ----------
-        data : tuple or list
-            Data tuple/list with numpy arrays, with shapes according to each
-            layer's input shape.
-
-        Returns
-        -------
-        data : tuple
-            Tuple with activated data, dimensions according to each layer's
-            output shape.
-
-        Notes
-        -----
-        All layers are activated with the data at the respective position, i.e.
-        the first layer with the first element of the data tuple and so on.
-
-        """
-        result = []
-        # process (multiple) inputs with (multiple) outputs
-        for i, layer in enumerate(self.layers):
-            # if mapping is not defined, use a 1:1 mapping
-            if self.mapping is None:
-                m = i
-            else:
-                m = self.mapping[i]
-            # activate layer with selected input data
-            result.append(layer(data[m]))
-        return tuple(result)
-
-
 class FeedForwardLayer(Layer):
     """
     Feed-forward network layer.
@@ -202,14 +67,14 @@ class FeedForwardLayer(Layer):
 
     """
 
-    def __init__(self, weights, bias, activation_fn=None):
+    def __init__(self, weights, bias, activation_fn):
         self.weights = weights
         self.bias = bias.flatten()
         self.activation_fn = activation_fn
 
     def activate(self, data, **kwargs):
         """
-        Activate FeedForwardLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -224,9 +89,7 @@ class FeedForwardLayer(Layer):
         """
         # weight input, add bias and apply activations function
         out = np.dot(data, self.weights) + self.bias
-        if self.activation_fn is not None:
-            self.activation_fn(out, out=out)
-        return out
+        return self.activation_fn(out)
 
 
 class RecurrentLayer(FeedForwardLayer):
@@ -241,14 +104,14 @@ class RecurrentLayer(FeedForwardLayer):
         Bias.
     recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Recurrent weights.
-    activation_fn : numpy ufunc, optional
+    activation_fn : numpy ufunc
         Activation function.
     init : numpy array, shape (num_hiddens,), optional
         Initial state of hidden units.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh,
+    def __init__(self, weights, bias, recurrent_weights, activation_fn,
                  init=None):
         super(RecurrentLayer, self).__init__(weights, bias, activation_fn)
         self.recurrent_weights = recurrent_weights
@@ -259,7 +122,7 @@ class RecurrentLayer(FeedForwardLayer):
         self._prev = self.init
 
     def __getstate__(self):
-        # copy everything to a picklable object
+        # copy everything to a pickleable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -277,7 +140,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def reset(self, init=None):
         """
-        Reset RecurrentLayer to its initial state.
+        Reset the layer to its initial state.
 
         Parameters
         ----------
@@ -290,7 +153,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def activate(self, data, reset=True):
         """
-        Activate RecurrentLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -315,8 +178,7 @@ class RecurrentLayer(FeedForwardLayer):
             # add weighted previous step
             out[i] += np.dot(self._prev, self.recurrent_weights)
             # apply activation function
-            if self.activation_fn is not None:
-                out[i] = self.activation_fn(out[i])
+            out[i] = self.activation_fn(out[i])
             # set reference to current output
             self._prev = out[i]
         # return
@@ -342,7 +204,7 @@ class BidirectionalLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate BidirectionalLayer.
+        Activate the layer.
 
         After activating the `fwd_layer` with the data and the `bwd_layer` with
         the data in reverse temporal order, the two activations are stacked and
@@ -401,7 +263,7 @@ class Gate(RecurrentLayer):
 
     def activate(self, data, prev, state=None):
         """
-        Activate gate with the given data, state (if peephole connections
+        Activate the gate with the given data, state (if peephole connections
         are used) and the previous output (if recurrent connections are used).
 
         Parameters
@@ -499,7 +361,7 @@ class LSTMLayer(RecurrentLayer):
         self._state = self.cell_init
 
     def __getstate__(self):
-        # copy everything to a picklable object
+        # copy everything to a pickleable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -521,7 +383,7 @@ class LSTMLayer(RecurrentLayer):
 
     def reset(self, init=None, cell_init=None):
         """
-        Reset LSTMLayer to its initial state.
+        Reset the layer to its initial state.
 
         Parameters
         ----------
@@ -537,7 +399,7 @@ class LSTMLayer(RecurrentLayer):
 
     def activate(self, data, reset=True):
         """
-        Activate LSTMLayer.
+        Activate the LSTM layer.
 
         Parameters
         ----------
@@ -629,7 +491,7 @@ class GRUCell(Cell):
 
     def activate(self, data, prev, reset_gate):
         """
-        Activate GRU cell with the given input, previous output and reset gate.
+        Activate the cell with the given input, previous output and reset gate.
 
         Parameters
         ----------
@@ -699,7 +561,7 @@ class GRULayer(RecurrentLayer):
         self._prev = self.init
 
     def __getstate__(self):
-        # copy everything to a picklable object
+        # copy everything to a pickleable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -782,9 +644,10 @@ class GRULayer(RecurrentLayer):
         return out
 
 
-def _kernel_margins(kernel_shape, margin_shift, pad='valid'):
+def _kernel_margins(kernel_shape, margin_shift):
     """
-    Determine the margin that needs to be cut off when doing a convolution.
+    Determine the margin that needs to be cut off when doing a "valid"
+    convolution.
 
     Parameters
     ----------
@@ -792,19 +655,12 @@ def _kernel_margins(kernel_shape, margin_shift, pad='valid'):
         Shape of the convolution kernel to determine the margins for
     margin_shift : bool
         Shift the borders by one pixel if kernel is of even size
-    pad : str, optional
-        Padding applied to the convolution, either 'valid' or 'same'.
 
     Returns
     -------
     start_x, end_x, start_y, end_y : tuple
         Indices determining the valid part of the convolution output.
     """
-
-    if pad == 'same':
-        return None, None, None, None
-    elif pad != 'valid':
-        raise NotImplementedError('only `pad` == "valid" implemented.')
 
     start_x = int(np.floor(kernel_shape[0] / 2.))
     start_y = int(np.floor(kernel_shape[1] / 2.))
@@ -836,32 +692,28 @@ try:
     # pylint: disable=wrong-import-order
     # pylint: disable=wrong-import-position
 
-    # opencv's convolution is much faster for certain kernel sizes
-    from cv2 import filter2D, BORDER_CONSTANT
+    # if opencv is installed, use their convolution function, because
+    # it is much faster
+    from cv2 import filter2D as _do_convolve
 
-    def _convolve_opencv(x, k, pad):
-        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=False, pad=pad)
-        anchor = (-1, -1)
-        if pad == 'same':
-            # TODO: check if this is correct in all cases
-            anchor = tuple(-1 * (np.array(k.shape) % 2))
-        # opencv computes a correlation, thus flip the kernel
-        return filter2D(x, -1, k[::-1, ::-1], anchor=anchor,
-                        borderType=BORDER_CONSTANT)[sx:ex, sy:ey]
+    def _convolve(x, k):
+        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=False)
+        return _do_convolve(x, -1, k[::-1, ::-1])[sx:ex, sy:ey]
+
 except ImportError:
-    _convolve_opencv = None
+    # scipy.ndimage.convolution behaves slightly differently with
+    # even-sized kernels. If it is used, we need to shift the margins
+    from scipy.ndimage import convolve as _do_convolve
+
+    def _convolve(x, k):
+        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=True)
+        return _do_convolve(x, k)[sx:ex, sy:ey]
 
 
-def _convolve_scipy(x, k, pad):
-    # scipy.ndimage.convolve behaves slightly differently with
-    # even-sized kernels, thus shift the margins
-    sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=True, pad=pad)
-    return _scipy_convolve(x, k, mode='constant')[sx:ex, sy:ey]
-
-
-def convolve(data, kernel, pad='valid'):
+def convolve(data, kernel):
     """
-    Convolve data with kernel.
+    Convolve the data with the kernel in 'valid' mode, i.e. only where
+    kernel and data fully overlaps.
 
     Parameters
     ----------
@@ -869,30 +721,14 @@ def convolve(data, kernel, pad='valid'):
         Data to be convolved.
     kernel : numpy array
         Convolution kernel
-    pad : {'valid', 'same', 'full'}
-        A string indicating the size of the output:
-
-        - full
-            The output is the full discrete linear convolution of the inputs.
-        - valid
-            The output consists only of those elements that do not rely on the
-            zero-padding.
-        - same
-            The output is the same size as the input, centered with respect to
-            the ‘full’ output.
 
     Returns
     -------
     numpy array
-        Convolved data.
+        Convolved data
 
     """
-    t, f = kernel.shape
-    # use opencv's convolution for small kernels if available
-    if _convolve_opencv is None:  # or t == 1 or f == 1:
-        return _convolve_scipy(data, kernel, pad)
-    else:
-        return _convolve_opencv(data, kernel, pad)
+    return _convolve(data, kernel)
 
 
 class ConvolutionalLayer(FeedForwardLayer):
@@ -901,7 +737,7 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     Parameters
     ----------
-    weights : numpy array, shape (num_channels, num_feature_maps, <kernel>)
+    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
         Weights.
     bias : scalar or numpy array, shape (num_filters,)
         Bias.
@@ -919,29 +755,33 @@ class ConvolutionalLayer(FeedForwardLayer):
             The output is the same size as the input, centered with respect to
             the ‘full’ output.
 
-    activation_fn : numpy ufunc, optional
+    activation_fn : numpy ufunc
         Activation function.
 
     """
 
-    def __init__(self, weights, bias, stride=None, pad='valid',
-                 activation_fn=None):
+    def __init__(self, weights, bias, stride=1, pad='valid',
+                 activation_fn=linear):
         super(ConvolutionalLayer, self).__init__(weights, bias, activation_fn)
+        if stride != 1:
+            raise NotImplementedError('only `stride` == 1 implemented.')
         self.stride = stride
+        if pad != 'valid':
+            raise NotImplementedError('only `pad` == "valid" implemented.')
         self.pad = pad
 
     def activate(self, data, **kwargs):
         """
-        Activate ConvolutionalLayer.
+        Activate the layer.
 
         Parameters
         ----------
-        data : numpy array, shape (num_frames, num_bins, num_channels)
+        data : numpy array (num_frames, num_bins, num_channels)
             Activate with this data.
 
         Returns
         -------
-        numpy array, shape (num_frames, num_bins, num_features)
+        numpy array
             Activations for this data.
 
         """
@@ -956,12 +796,9 @@ class ConvolutionalLayer(FeedForwardLayer):
             raise ValueError('Number of channels in weight vector different '
                              'from number of channels of input data!')
         # adjust the output number of frames and bins depending on `pad`
-        if self.pad == 'valid':
-            num_frames -= (size_time - 1)
-            num_bins -= (size_freq - 1)
-        elif self.pad != 'same':
-            raise NotImplementedError('`pad` is neither "valid" nor "same"')
-
+        # TODO: this works only with pad='valid'
+        num_frames -= (size_time - 1)
+        num_bins -= (size_freq - 1)
         # init the output array with Fortran ordering (column major)
         out = np.zeros((num_frames, num_bins, num_features),
                        dtype=NN_DTYPE, order='F')
@@ -970,18 +807,10 @@ class ConvolutionalLayer(FeedForwardLayer):
             channel = data[:, :, c]
             # convolve each channel separately with each filter
             for w, weights in enumerate(self.weights[c]):
-                conv = convolve(channel, weights, self.pad)
+                conv = convolve(channel, weights)
                 out[:, :, w] += conv
         # add bias to each feature map and apply activation function
-        out += self.bias
-        if self.activation_fn is not None:
-            self.activation_fn(out, out=out)
-
-        # use only selected parts of the output
-        if self.stride not in (None, 1, (1, 1)):
-            out = out[::self.stride[0], ::self.stride[1]]
-
-        return out
+        return self.activation_fn(out + self.bias)
 
 
 class StrideLayer(Layer):
@@ -1000,7 +829,7 @@ class StrideLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate StrideLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1029,34 +858,23 @@ class MaxPoolLayer(Layer):
         The size of the pooling region in each dimension.
     stride : tuple, optional
         The strides between successive pooling regions in each dimension.
-        If 'None' `stride` = `size`.
-    axis : int, optional
-        Pool along the given axis. If set, `size` is ignored.
+        If None `stride` = `size`.
 
     """
 
-    def __init__(self, size, stride=None, axis=None):
+    def __init__(self, size, stride=None):
         self.size = size
         if stride is None:
             stride = size
         self.stride = stride
-        self.axis = axis
-
-    def __setstate__(self, state):
-        # restore pickled instance attributes
-        self.__dict__.update(state)
-        # TODO: old models do not have `axis`, thus create it
-        #       remove this initialisation code after updating the models
-        if not hasattr(self, 'axis'):
-            self.axis = None
 
     def activate(self, data, **kwargs):
         """
-        Activate MaxPoolLayer.
+        Activate the layer.
 
         Parameters
         ----------
-        data : numpy array, shape (num_frames, num_bins[, num_channels])
+        data : numpy array
             Activate with this data.
 
         Returns
@@ -1065,31 +883,15 @@ class MaxPoolLayer(Layer):
             Max pooled data.
 
         """
-        if self.axis is not None:
-            if self.stride is not None:
-                raise NotImplementedError('`axis` with `stride` not supported')
-            return np.max(data, axis=self.axis)
+        from scipy.ndimage.filters import maximum_filter
         # define which part of the maximum filtered data to return
-        slice_dim_1 = slice(self.size[0] // 2,
-                            data.shape[0] - (self.size[0] - 1) // 2,
-                            self.stride[0])
-        slice_dim_2 = slice(self.size[1] // 2,
-                            data.shape[1] - (self.size[1] - 1) // 2,
-                            self.stride[1])
-
+        slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
+        slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
         # TODO: is constant mode the most appropriate?
-        if len(data.shape) == 2:
-            # filter the data as is
-            return maximum_filter(data, self.size,
-                                  mode='constant')[slice_dim_1, slice_dim_2]
-        elif len(data.shape) == 3:
-            # filter each channel separately
-            data = [maximum_filter(data[:, :, c], self.size, mode='constant')
-                    [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
-            # join channels and return as array
-            return np.dstack(data)
-        else:
-            ValueError('`data` must bei either 2 or 3-dimensional')
+        data = [maximum_filter(data[:, :, c], self.size, mode='constant')
+                [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
+        # join channels and return as array
+        return np.dstack(data)
 
 
 class BatchNormLayer(Layer):
@@ -1112,7 +914,7 @@ class BatchNormLayer(Layer):
     inv_std : numpy array
         Inverse standard deviation of incoming data. Must be broadcastable to
         the incoming shape.
-    activation_fn : numpy ufunc, optional
+    activation_fn : numpy ufunc
         Activation function.
 
     References
@@ -1124,7 +926,7 @@ class BatchNormLayer(Layer):
 
     """
 
-    def __init__(self, beta, gamma, mean, inv_std, activation_fn=None):
+    def __init__(self, beta, gamma, mean, inv_std, activation_fn):
         self.beta = beta
         self.gamma = gamma
         self.mean = mean
@@ -1133,7 +935,7 @@ class BatchNormLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate BatchNormLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1146,10 +948,9 @@ class BatchNormLayer(Layer):
             Normalized data.
 
         """
-        out = (data - self.mean) * (self.gamma * self.inv_std) + self.beta
-        if self.activation_fn is not None:
-            self.activation_fn(out, out=out)
-        return out
+        return self.activation_fn(
+            (data - self.mean) * (self.gamma * self.inv_std) + self.beta
+        )
 
 
 class TransposeLayer(Layer):
@@ -1169,7 +970,7 @@ class TransposeLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate TransposeLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1207,7 +1008,7 @@ class ReshapeLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate ReshapeLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1220,7 +1021,7 @@ class ReshapeLayer(Layer):
             Reshaped data.
 
         """
-        return np.reshape(data, self.newshape, order=self.order)
+        return np.reshape(data, self.newshape, self.order)
 
 
 class AverageLayer(Layer):
@@ -1233,7 +1034,7 @@ class AverageLayer(Layer):
         Axis or axes along which the means are computed. The default is to
         compute the mean of the flattened array.
     dtype : data-type, optional
-        Type to use in computing the mean. For integer inputs, the default
+        Type to use in computing the mean.  For integer inputs, the default
         is `float64`; for floating point inputs, it is the same as the
         input dtype.
     keepdims : bool, optional
@@ -1249,7 +1050,7 @@ class AverageLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate AverageLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1288,7 +1089,7 @@ class PadLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate PadLayer.
+        Activate the layer.
 
         Parameters
         ----------
@@ -1309,146 +1110,3 @@ class PadLayer(Layer):
         data_padded = np.full(tuple(shape), self.value)
         data_padded[tuple(data_idxs)] = data
         return data_padded
-
-
-class TCNBlock(Layer):
-    """
-    TCN Block.
-
-    Parameters
-    ----------
-    dilated_conv : ConvolutionalLayer or List thereof
-        Layer(s) which performs the dilated convolution.
-    dilation_rate : int, optional or List of ints
-        Dilation rate(s) of the `dilated_conv` layer(s).
-    activation_fn : numpy ufunc, optional
-        Activation function to be applied after the dilated convolution.
-    skip_conv : ConvolutionalLayer, optional
-        Layer which convolves the output of the dilated convolution to be used
-        as skip connection and added to the residual data. If 'None', the
-        output after the activation function is used directly.
-    residual_conv : ConvolutionalLayer, optional
-        Layer which convolves the input data to have the same output dimension
-        as the main activation path. If 'None', the input data is added
-        directly to the output of the skip convolution.
-
-    """
-
-    def __init__(self, dilated_conv, dilation_rate, activation_fn=None,
-                 skip_conv=None, residual_conv=None):
-        self.dilated_conv = dilated_conv
-        self.dilation_rate = dilation_rate
-        self.activation_fn = activation_fn
-        self.skip_conv = skip_conv
-        self.residual_conv = residual_conv
-
-    @staticmethod
-    def _dilate_data(data, size, dilation_rate):
-        if dilation_rate is None:
-            return data
-        # Note: TCNBlock supports only 1D convolutions, data is given as
-        #       (time, freq=1, num_features), thus reshape to given size
-        #       (time, kernel_size, num_features)
-        #       to be able to convolve with normal 2D convolution
-        # determine data shape and number of bytes per item
-        t, f, n = data.shape
-        i = data.itemsize
-        assert f == 1, 'TCNBlock supports only 1D dilated convolutions.'
-        # to be able to use as_strided we have to pad the data accordingly
-        # pad twice the dilation_rate on each side with zeros
-        zeros = np.zeros((dilation_rate * 2, f, n), dtype=data.dtype)
-        padded_data = np.concatenate((zeros, data, zeros))
-        # return a dilated view of the data
-        return as_strided(padded_data,
-                          shape=(t, size, n),
-                          strides=(n * i, n * i * dilation_rate, i))
-
-    def activate(self, data, **kwargs):
-        """
-        Activate TCNBlock.
-
-        Parameters
-        ----------
-        data : numpy array
-            Activate with this data.
-
-        Returns
-        -------
-        tuple
-            Dilated (and activated) data, skip connection.
-
-        """
-        # the layer uses multiple dilated convolutions
-        if isinstance(self.dilated_conv, list):
-            # layer has multiple dilated convolutions
-            out = []
-            for conv, rate in zip(self.dilated_conv, self.dilation_rate):
-                size = conv.weights.shape[-1]
-                out.append(conv(self._dilate_data(data, size, rate)))
-            # concatenate their output
-            out = np.concatenate(out, axis=-1)
-        else:
-            # layer has only a single dilated convolutions
-            size = self.dilated_conv.weights.shape[-1]
-            out = self.dilated_conv(self._dilate_data(data, size,
-                                                      self.dilation_rate))
-        if self.activation_fn is not None:
-            out = self.activation_fn(out)
-        if self.skip_conv is not None:
-            out = self.skip_conv(out)
-        if self.residual_conv is not None:
-            res = self.residual_conv(data)
-        else:
-            res = data
-        return res + out, out
-
-
-class TCNLayer(Layer):
-    """
-    Temporal convolutional network layer.
-
-    Parameters
-    ----------
-    tcn_blocks : list of TCNBlock instances
-        TCN blocks which perform the dilated convolutions.
-    activation_fn : numpy ufunc, optional
-        Activation function to be applied after the TCN blocks.
-    skip_connections : bool, optional
-        Aggregate skip connections by summation.
-
-    """
-
-    def __init__(self, tcn_blocks, activation_fn=None, skip_connections=False):
-        self.tcn_blocks = tcn_blocks
-        self.skip_connections = skip_connections
-        self.activation_fn = activation_fn
-
-    def activate(self, data, **kwargs):
-        """
-        Activate TCNLayer.
-
-        Parameters
-        ----------
-        data : numpy array (num_frames, num_inputs)
-            Activate with this data.
-
-        Returns
-        -------
-        numpy array or tuple
-            Activations for this data. If `skip_connections` is 'True', a tuple
-            with the summed skip connections as its second element is returned.
-
-        """
-        skip_connections = None
-        for i, tcn_block in enumerate(self.tcn_blocks):
-            data, skip = tcn_block(data)
-            if i == 0:
-                skip_connections = skip
-            else:
-                skip_connections += skip
-        if self.activation_fn is not None:
-            self.activation_fn(data, out=data)
-        if self.skip_connections:
-            return data, skip_connections
-        else:
-            return data

@@ -76,6 +76,9 @@ class Activations(np.ndarray):
             obj = cls.load(data, fps, sep)
         else:
             raise TypeError("wrong input data for Activations")
+        # frame rate must be set
+        if obj.fps is None:
+            raise TypeError("frame rate for Activations must be set")
         # return the object
         return obj
 
@@ -118,12 +121,9 @@ class Activations(np.ndarray):
             # numpy binary format
             data = np.load(infile)
             if isinstance(data, np.lib.npyio.NpzFile):
-                # .npz file, extract the frame rate if given
-                if 'fps' in data.files:
-                    try:
-                        fps = float(data['fps'])
-                    except ValueError:
-                        fps = None
+                # .npz file, set the frame rate if none is given
+                if fps is None:
+                    fps = float(data['fps'])
                 # and overwrite the data
                 data = data['activations']
         else:
@@ -182,13 +182,7 @@ class Activations(np.ndarray):
             header = "FPS:%f" % self.fps
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
-        # TODO: check if closing the file is really the best option to avoid
-        #       fails in tests/test_bin.py
-        try:
-            outfile.close()
-        except AttributeError:
-            # a string filename cannot be closed
-            pass
+        outfile.close()
 
 
 class ActivationsProcessor(Processor):
@@ -294,9 +288,8 @@ from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
                         PatternTrackingProcessor, RNNBarProcessor,
                         DBNBarTrackingProcessor)
 from .key import CNNKeyRecognitionProcessor
-from .notes import (CNNPianoNoteProcessor, ADSRNoteTrackingProcessor,
-                    NoteOnsetPeakPickingProcessor, NotePeakPickingProcessor,
-                    RNNPianoNoteProcessor)
+from .notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
 from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
-                     RNNOnsetProcessor, SpectralOnsetProcessor)
+                     PeakPickingProcessor, RNNOnsetProcessor,
+                     SpectralOnsetProcessor)
 from .tempo import TempoEstimationProcessor

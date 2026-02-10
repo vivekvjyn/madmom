@@ -14,7 +14,6 @@ import warnings
 
 import numpy as np
 
-from .beats import threshold_activations
 from .beats_hmm import (BarStateSpace, BarTransitionModel,
                         GMMPatternTrackingObservationModel,
                         MultiPatternStateSpace,
@@ -271,8 +270,13 @@ class DBNDownBeatTrackingProcessor(Processor):
         # use only the activations > threshold (init offset to be added later)
         first = 0
         if self.threshold:
-            activations, first = threshold_activations(activations,
-                                                       self.threshold)
+            idx = np.nonzero(activations >= self.threshold)[0]
+            if idx.any():
+                first = max(first, np.min(idx))
+                last = min(len(activations), np.max(idx) + 1)
+            else:
+                last = first
+            activations = activations[first:last]
         # return no beats if no activations given / remain after thresholding
         if not activations.any():
             return np.empty((0, 2))
@@ -280,7 +284,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         results = list(self.map(_process_dbn, zip(self.hmms,
                                                   it.repeat(activations))))
         # choose the best HMM (highest log probability)
-        best = np.argmax(list(r[1] for r in results))
+        best = np.argmax(np.asarray(results)[:, 1])
         # the best path through the state space
         path, _ = results[best]
         # the state space and observation model of the best HMM
@@ -291,15 +295,12 @@ class DBNDownBeatTrackingProcessor(Processor):
         # corresponding beats (add 1 for natural counting)
         beat_numbers = positions.astype(int) + 1
         if self.correct:
-            beats = np.empty(0, dtype=int)
+            beats = np.empty(0, dtype=np.int)
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are >= 1
             beat_range = om.pointers[path] >= 1
-            # if there aren't any in the beat range, there are no beats
-            if not beat_range.any():
-                return np.empty((0, 2))
             # get all change points between True and False (cast to int before)
-            idx = np.nonzero(np.diff(beat_range.astype(int)))[0] + 1
+            idx = np.nonzero(np.diff(beat_range.astype(np.int)))[0] + 1
             # if the first frame is in the beat range, add a change at frame 0
             if beat_range[0]:
                 idx = np.r_[0, idx]
@@ -883,7 +884,7 @@ class SyncronizeFeaturesProcessor(Processor):
             (num_beats - 1, self.beat_subdivisions, feat_dim))
         # start first beat 20ms before actual annotation
         beat_start = int(max(0, np.floor((beats[0] - 0.02) * self.fps)))
-        # TODO: speed this up, could probably be done without a loop
+        # TODO: speed this up, could propably be done without a loop
         for i in range(num_beats - 1):
             # aggregate all feature values that fall into a window of
             # length = beat_duration / beat_subdivisions, centered on the beat
@@ -998,7 +999,7 @@ class RNNBarProcessor(Processor):
         Parameters
         ----------
         data : tuple
-            Tuple containing a signal or file (handle) and corresponding beat
+            Tuple containg a signal or file (handle) and corresponding beat
             times [seconds].
 
         Returns
@@ -1088,9 +1089,7 @@ class DBNBarTrackingProcessor(Processor):
                  observation_weight=OBSERVATION_WEIGHT,
                  meter_change_prob=METER_CHANGE_PROB, **kwargs):
         # pylint: disable=unused-argument
-        from madmom.utils import integer_types
-        if isinstance(beats_per_bar, integer_types):
-            beats_per_bar = (beats_per_bar, )
+        # save variables
         self.beats_per_bar = beats_per_bar
         # state space & transition model for each bar length
         state_spaces = []
@@ -1101,7 +1100,7 @@ class DBNBarTrackingProcessor(Processor):
             tm = BarTransitionModel(st, transition_lambda=1)
             state_spaces.append(st)
             transition_models.append(tm)
-        # Note: treat different bar lengths as different patterns and use the
+        # Note: treat diffrent bar lengths as different patterns and use the
         #       existing MultiPatternStateSpace and MultiPatternTransitionModel
         self.st = MultiPatternStateSpace(state_spaces)
         self.tm = MultiPatternTransitionModel(
@@ -1151,7 +1150,7 @@ class DBNBarTrackingProcessor(Processor):
         last_beat_number = np.mod(beat_numbers[-1], meter) + 1
         beat_numbers = np.append(beat_numbers, last_beat_number)
         # return beats and their beat numbers
-        return np.vstack((beats, beat_numbers)).T
+        return np.vstack(zip(beats, beat_numbers))
 
     @classmethod
     def add_arguments(cls, parser, beats_per_bar,

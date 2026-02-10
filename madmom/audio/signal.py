@@ -10,7 +10,6 @@ This module contains basic signal processing functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
-
 import numpy as np
 
 from ..processors import BufferProcessor, Processor
@@ -167,7 +166,7 @@ def normalize(signal):
     return np.asanyarray(signal / scaling, dtype=signal.dtype)
 
 
-def remix(signal, num_channels, channel=None):
+def remix(signal, num_channels):
     """
     Remix the signal to have the desired number of channels.
 
@@ -177,9 +176,6 @@ def remix(signal, num_channels, channel=None):
         Signal to be remixed.
     num_channels : int
         Number of channels.
-    channel : int, optional
-        When reducing a signal to `num_channels` of 1, use this channel,
-        or 'None' to return the average across all channels.
 
     Returns
     -------
@@ -200,19 +196,16 @@ def remix(signal, num_channels, channel=None):
     convert the dtype first.
 
     """
+    # convert to the desired number of channels
     if num_channels == signal.ndim or num_channels is None:
         # return as many channels as there are.
         return signal
     elif num_channels == 1 and signal.ndim > 1:
-        if channel is None:
-            # down-mix to mono
-            # Note: to prevent clipping, the signal is converted to float first
-            #       and then converted back to the original dtype
-            # TODO: add weighted mixing
-            return np.mean(signal, axis=-1).astype(signal.dtype)
-        else:
-            # Use the requested channel verbatim
-            return signal[:, channel]
+        # down-mix to mono
+        # Note: to prevent clipping, the signal is converted to float first
+        #       and then converted back to the original dtype
+        # TODO: add weighted mixing
+        return np.mean(signal, axis=-1).astype(signal.dtype)
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
         return np.tile(signal[:, np.newaxis], num_channels)
@@ -359,8 +352,8 @@ def energy(signal):
     if np.iscomplex(signal).any():
         signal = np.abs(signal)
     # Note: type conversion needed because of integer overflows
-    if signal.dtype != float:
-        signal = signal.astype(float)
+    if signal.dtype != np.float:
+        signal = signal.astype(np.float)
     # return energy
     return np.dot(signal.flatten(), signal.flatten())
 
@@ -495,7 +488,6 @@ def load_audio_file(*args, **kwargs):
 # signal classes
 SAMPLE_RATE = None
 NUM_CHANNELS = None
-CHANNEL = None
 START = None
 STOP = None
 NORM = False
@@ -518,9 +510,6 @@ class Signal(np.ndarray):
     num_channels : int, optional
         Reduce or expand the signal to `num_channels` channels, or 'None'
         to return the signal with its original channels.
-    channel : int, optional
-        When reducing a signal to `num_channels` of 1, use this channel,
-        or 'None' to return the average across all channels.
     start : float, optional
         Start position [seconds].
     stop : float, optional
@@ -592,14 +581,14 @@ class Signal(np.ndarray):
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, sample_rate=SAMPLE_RATE,
-                 num_channels=NUM_CHANNELS, channel=CHANNEL, start=START,
-                 stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE, **kwargs):
+                 num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
+                 gain=GAIN, dtype=DTYPE, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                channel=CHANNEL, start=START, stop=STOP, norm=NORM, gain=GAIN,
-                dtype=DTYPE, **kwargs):
+                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
+                **kwargs):
         from ..io.audio import load_audio_file
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
@@ -613,7 +602,7 @@ class Signal(np.ndarray):
             data.sample_rate = sample_rate
         # remix to desired number of channels
         if num_channels:
-            data = remix(data, num_channels, channel)
+            data = remix(data, num_channels)
         # normalize signal if needed
         if norm:
             data = normalize(data)
@@ -638,22 +627,6 @@ class Signal(np.ndarray):
         self.sample_rate = getattr(obj, 'sample_rate', None)
         self.start = getattr(obj, 'start', None)
         self.stop = getattr(obj, 'stop', None)
-
-    def __reduce__(self):
-        # Get the parent's __reduce__ tuple
-        state = super(Signal, self).__reduce__()
-        # Create our own tuple to pass to __setstate__, but append the
-        # __dict__ rather than individual members
-        new_state = state[2] + (self.__dict__,)
-        # Return a tuple that replaces the parent's __setstate__ tuple with
-        # our own
-        return state[0], state[1], new_state
-
-    def __setstate__(self, state):
-        # Update the internal dict from state
-        self.__dict__.update(state[-1])
-        # Call the parent's __setstate__ with the other tuple elements
-        super(Signal, self).__setstate__(state[:-1])
 
     @property
     def num_samples(self):
@@ -857,7 +830,7 @@ class SignalProcessor(Processor):
 
 
 # functions for splitting a signal into frames
-def signal_frame(signal, index, frame_size, hop_size, origin=0, pad=0):
+def signal_frame(signal, index, frame_size, hop_size, origin=0):
     """
     This function returns frame at `index` of the `signal`.
 
@@ -873,10 +846,6 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, pad=0):
         Hop size in samples between adjacent frames.
     origin : int
         Location of the window center relative to the signal position.
-    pad : int, float or str, optional
-        Pad parts of the frame not covered by the signal with this value.
-        The literal 'repeat' can be used to indicate that the first/last value
-        should be repeated.
 
     Returns
     -------
@@ -919,47 +888,37 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, pad=0):
     start = ref_sample - frame_size // 2 - int(origin)
     stop = start + frame_size
     # return the requested portion of the signal
-    # Note: use NumPy's advanced indexing (i.e. trailing comma) in order to
-    #       avoid a memory leak (issue #321). This returns a copy of the data,
-    #       however, returning a simple copy of the relevant portion of the
-    #       signal also leaks memory
-    # Update: removing this hack again, since it seems that it is not needed
-    #         any more with recent NumPy versions
-    if start >= 0 and stop <= num_samples:
-        # normal read operation, return appropriate section
-        return signal[start:stop]
-
-    # part of the frame falls outside the signal, padding needed
     # Note: np.pad(signal[from: to], (pad_left, pad_right), mode='constant')
     #       always returns a ndarray, not the subclass (and is slower);
     #       usually np.zeros_like(signal[:frame_size]) is exactly what we want
     #       (i.e. zeros of frame_size length and the same type/class as the
     #       signal and not just the dtype), but since we have no guarantee that
     #       the signal is that long, we have to use the np.repeat workaround
-    frame = np.repeat(signal[:1], frame_size, axis=0)
-
-    # determine how many samples need to be padded from left/right
-    left, right = 0, 0
-    if start < 0:
-        left = min(stop, 0) - start
-        # repeat beginning of signal
-        frame[:left] = np.repeat(signal[:1], left, axis=0)
-        if pad != 'repeat':
-            frame[:left] = pad
-        start = 0
-    if stop > num_samples:
-        right = stop - max(start, num_samples)
-        # repeat end of signal
-        frame[-right:] = np.repeat(signal[-1:], right, axis=0)
-        if pad != 'repeat':
-            frame[-right:] = pad
-        stop = num_samples
-
-    # position signal inside frame
-    frame[left:frame_size - right] = signal[min(start, num_samples):
-                                            max(stop, 0)]
-    # return the frame
-    return frame
+    # Note: use NumPy's advanced indexing (i.e. trailing comma) in order to
+    #       avoid a memory leak (issue #321). This returns a copy of the data,
+    #       however, returning a simple copy of the relevant portion of the
+    #       signal also leaks memory
+    if (stop < 0) or (start > num_samples):
+        # window falls completely outside the actual signal, return just zeros
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
+        return frame
+    elif (start < 0) and (stop > num_samples):
+        # window surrounds the actual signal, position signal accordingly
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
+        frame[-start:num_samples - start] = signal
+        return frame
+    elif start < 0:
+        # window crosses left edge of actual signal, pad zeros from left
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
+        frame[-start:] = signal[:stop, ]
+        return frame
+    elif stop > num_samples:
+        # window crosses right edge of actual signal, pad zeros from right
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
+        frame[:num_samples - start] = signal[start:, ]
+        return frame
+    # normal read operation
+    return signal[start:stop, ]
 
 
 FRAME_SIZE = 2048
@@ -1413,8 +1372,6 @@ class Stream(object):
     fps : float, optional
         Use given frames per second; if set, this computes and overwrites the
         given `hop_size` value (the resulting `hop_size` must be an integer).
-    stream_input_device : int, optional
-        PyAudio device index of the desired input device.
     queue_size : int
         Size of the FIFO (first in first out) queue. If the queue is full and
         new audio samples arrive, the oldest item in the queue will be dropped.
@@ -1428,12 +1385,12 @@ class Stream(object):
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=FPS, stream_input_device=None, **kwargs):
+                 fps=FPS, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
         # set attributes
         self.sample_rate = sample_rate
-        self.num_channels = 1 if num_channels is None else num_channels
+        self.num_channels = 1 if None else num_channels
         self.dtype = dtype
         if frame_size:
             self.frame_size = int(frame_size)
@@ -1444,7 +1401,6 @@ class Stream(object):
             raise ValueError(
                 'only integer `hop_size` supported, not %s' % hop_size)
         self.hop_size = int(hop_size)
-        self.stream_input_device = stream_input_device
         # init PyAudio
         self.pa = pyaudio.PyAudio()
         # init a stream to read audio samples from
@@ -1452,7 +1408,6 @@ class Stream(object):
                                    channels=self.num_channels,
                                    format=pyaudio.paFloat32, input=True,
                                    frames_per_buffer=self.hop_size,
-                                   input_device_index=self.stream_input_device,
                                    start=True)
         # create a buffer
         self.buffer = BufferProcessor(self.frame_size)

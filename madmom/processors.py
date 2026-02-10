@@ -20,7 +20,7 @@ import itertools as it
 import multiprocessing as mp
 import os
 import sys
-from collections.abc import MutableSequence
+from collections import MutableSequence
 
 import numpy as np
 
@@ -64,6 +64,12 @@ class Processor(object):
             except TypeError:
                 # Python 2 doesn't have/need the encoding
                 obj = pickle.load(f)
+        # warn if the unpickled Processor is of other type
+        if obj.__class__ is not cls:
+            import warnings
+            warnings.warn("Expected Processor of class '%s' but loaded "
+                          "Processor is of class '%s', processing anyways." %
+                          (cls.__name__, obj.__class__.__name__))
         return obj
 
     def dump(self, outfile):
@@ -619,7 +625,7 @@ class _ParallelProcess(mp.Process):
 
     def run(self):
         """Process all tasks from the task queue."""
-        from .io.audio import LoadAudioFileError
+        from .audio.signal import LoadAudioFileError
         while True:
             # get the task tuple
             processor, infile, outfile, kwargs = self.task_queue.get()
@@ -628,9 +634,8 @@ class _ParallelProcess(mp.Process):
                 _process((processor, infile, outfile, kwargs))
             except LoadAudioFileError as e:
                 print(e)
-            finally:
-                # signal that it is done
-                self.task_queue.task_done()
+            # signal that it is done
+            self.task_queue.task_done()
 
 
 # function to batch process multiple files with a processor
@@ -755,11 +760,6 @@ class BufferProcessor(Processor):
         self.init = init
         self.data = init
 
-    @property
-    def buffer_length(self):
-        """Length of the buffer (time steps)."""
-        return self.buffer_size[0]
-
     def reset(self, init=None):
         """
         Reset BufferProcessor to its initial state.
@@ -786,28 +786,17 @@ class BufferProcessor(Processor):
         numpy array or subclass thereof
             Data with buffered context.
 
-        Notes
-        -----
-        If the length of data is the same as the buffer's length, the data of
-        the buffer is completely overwritten by new data. If it exceeds the
-        length, only the latest 'buffer_length' items of data are used.
-
         """
         # expected minimum number of dimensions
         ndmin = len(self.buffer_size)
         # cast the data to have that many dimensions
         if data.ndim < ndmin:
-            data = np.array(data, ndmin=ndmin)
+            data = np.array(data, copy=False, subok=True, ndmin=ndmin)
         # length of the data
         data_length = len(data)
-        # if length of data exceeds buffer length simply replace buffer data
-        if data_length >= self.buffer_length:
-            self.data = data[-self.buffer_length:]
-        else:
-            # roll buffer by `data_length`, i.e. move data to the 'left'
-            self.data = np.roll(self.data, -data_length, axis=0)
-            # overwrite 'right' part with new data
-            self.data[-data_length:] = data
+        # remove `data_length` from buffer at the beginning and append new data
+        self.data = np.roll(self.data, -data_length, axis=0)
+        self.data[-data_length:] = data
         # return the complete buffer
         return self.data
 
@@ -843,7 +832,7 @@ def process_online(processor, infile, outfile, **kwargs):
         Processor to be processed.
     infile : str or file handle, optional
         Input file (handle). If none is given, the stream present at the
-        system's audio input is used. Additional keyword arguments can be used
+        system's audio inpup is used. Additional keyword arguments can be used
         to influence the frame size and hop size.
     outfile : str or file handle
         Output file (handle).
@@ -862,16 +851,7 @@ def process_online(processor, infile, outfile, **kwargs):
     # set default values
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
-    # list all available PyAudio devices and exit afterwards
-    if kwargs['list_stream_input_device']:
-        import pyaudio
-        pa = pyaudio.PyAudio()
-        for i in range(pa.get_device_count()):
-            info = pa.get_device_info_by_index(i)
-            print('%d: %s' % (info['index'], info['name']))
-        exit(0)
-
-    # if no input file is given, create a Stream with the given arguments
+    # if no iput file is given, create a Stream with the given arguments
     if infile is None:
         # open a stream and start if not running already
         stream = Stream(**kwargs)
@@ -1007,15 +987,6 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                         default=output, help='output file [default: STDOUT]')
         sp.add_argument('-j', dest='num_threads', type=int, default=1,
                         help='number of threads [default=%(default)s]')
-        sp.add_argument('--device', dest='stream_input_device', type=int,
-                        default=None, help='PyAudio device index of the '
-                                           'desired input device '
-                                           '[default=%(default)s]')
-        sp.add_argument('--list', dest='list_stream_input_device',
-                        action='store_true', default=False,
-                        help='show a list of available PyAudio devices; index '
-                             'can be used as STREAM_INPUT_DEVICE for the '
-                             '--device argument')
         # set arguments for loading processors
         sp.set_defaults(online=True)      # use online settings/parameters
         sp.set_defaults(num_frames=1)     # process everything frame-by-frame

@@ -18,7 +18,6 @@ References
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from scipy.ndimage import correlate1d
 
 cimport numpy as np
 cimport cython
@@ -70,7 +69,7 @@ def transition_distribution(interval, interval_sigma):
     """
     from scipy.stats import norm
 
-    move_range = np.arange(interval * 2, dtype=float)
+    move_range = np.arange(interval * 2, dtype=np.float)
     # to avoid floating point hell due to np.log2(0)
     move_range[0] = 0.000001
 
@@ -98,6 +97,7 @@ def normalisation_factors(activations, transition_distribution):
         Normalisation factors for model.
 
     """
+    from scipy.ndimage.filters import correlate1d
     return correlate1d(activations, transition_distribution,
                        mode='constant', cval=0,
                        origin=-int(transition_distribution.shape[0] / 2))
@@ -182,9 +182,9 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # previous viterbi variables. will be initialized with prior (first beat)
     cdef float [::1] v_p = np.empty(num_st, dtype=np.float32)
     # back-tracking pointers;
-    cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=int)
+    cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=np.int)
     # back tracked path, a.k.a. path sequence
-    cdef long [::1] path = np.empty(num_x, dtype=int)
+    cdef long [::1] path = np.empty(num_x, dtype=np.int)
 
     # counters etc.
     cdef int k, i, j, next_state

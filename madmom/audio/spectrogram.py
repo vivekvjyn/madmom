@@ -10,13 +10,11 @@ This module contains spectrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
-
 import numpy as np
-from scipy.ndimage import maximum_filter
 
+from ..processors import Processor, SequentialProcessor, BufferProcessor
 from .filters import (Filterbank, LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX,
                       A4, NORM_FILTERS, UNIQUE_FILTERS)
-from ..processors import Processor, SequentialProcessor, BufferProcessor
 
 
 def spec(stft):
@@ -36,50 +34,6 @@ def spec(stft):
 
     """
     return np.abs(stft)
-
-
-def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
-    """
-    Determines the tuning frequency of the audio signal based on the given
-    magnitude spectrogram.
-
-    To determine the tuning frequency, a weighted histogram of relative
-    deviations of the spectrogram bins towards the closest semitones is built.
-
-    Parameters
-    ----------
-    spectrogram : numpy array
-        Magnitude spectrogram.
-    bin_frequencies : numpy array
-        Frequencies of the spectrogram bins [Hz].
-    num_hist_bins : int, optional
-        Number of histogram bins.
-    fref : float, optional
-        Reference tuning frequency [Hz].
-
-    Returns
-    -------
-    tuning_frequency : float
-        Tuning frequency [Hz].
-
-    """
-    from .filters import hz2midi
-    # interval of spectral bins from the reference frequency in semitones
-    semitone_int = hz2midi(bin_frequencies, fref=fref)
-    # deviation from the next semitone
-    semitone_dev = semitone_int - np.round(semitone_int)
-    # np.histogram accepts bin edges, so we need to apply an offset and use 1
-    # more bin than given to build a histogram
-    offset = 0.5 / num_hist_bins
-    hist_bins = np.linspace(-0.5 - offset, 0.5 + offset, num_hist_bins + 1)
-    histogram = np.histogram(semitone_dev, weights=np.sum(spectrogram, axis=0),
-                             bins=hist_bins)
-    # deviation of the bins (centre of the bins)
-    dev_bins = (histogram[1][:-1] + histogram[1][1:]) / 2.
-    # dominant deviation
-    dev = dev_bins[np.argmax(histogram[0])]
-    # calculate the tuning frequency
-    return fref * 2. ** (dev / 12.)
 
 
 # magnitude spectrogram of STFT
@@ -211,29 +165,6 @@ class Spectrogram(np.ndarray):
 
         """
         return LogarithmicSpectrogram(self, **kwargs)
-
-    def tuning_frequency(self, **kwargs):
-        """
-        Return the tuning frequency of the audio signal based on peaks of the
-        spectrogram.
-
-        Parameters
-        ----------
-        kwargs : dict
-            Keyword arguments passed to :func:`tuning_frequency`.
-
-        Returns
-        -------
-        tuning_frequency : float
-            Tuning frequency of the spectrogram.
-
-        """
-        # widen the spectrogram in frequency dimension
-        max_spec = maximum_filter(self, size=[1, 3])
-        # get the peaks of the spectrogram
-        max_spec = self * (self == max_spec)
-        # determine the tuning frequency
-        return tuning_frequency(max_spec, self.bin_frequencies, **kwargs)
 
 
 class SpectrogramProcessor(Processor):
@@ -844,7 +775,7 @@ def _diff_frames(diff_ratio, hop_size, frame_size, window=np.hanning):
     frame_size : int
         Size of one frames in samples.
     window : numpy ufunc or array
-        Window function.
+        Window funtion.
 
     Returns
     -------
@@ -974,6 +905,7 @@ class SpectrogramDifference(Spectrogram):
 
         # apply a maximum filter to diff_spec if needed
         if diff_max_bins is not None and diff_max_bins > 1:
+            from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
             size = (1, int(diff_max_bins))
             diff_spec = maximum_filter(spectrogram, size=size)
@@ -1070,7 +1002,7 @@ class SpectrogramDifferenceProcessor(Processor):
         self._buffer = None
 
     def __getstate__(self):
-        # copy everything to a picklable object
+        # copy everything to a pickleable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_buffer', None)
@@ -1112,7 +1044,7 @@ class SpectrogramDifferenceProcessor(Processor):
         args.update(kwargs)
         # calculate the number of diff frames
         if self.diff_frames is None:
-            # Note: use diff_ratio from args, not self.diff_ratio
+            # Note: use diff_ration from args, not self.diff_ratio
             self.diff_frames = _diff_frames(
                 args['diff_ratio'], frame_size=data.stft.frames.frame_size,
                 hop_size=data.stft.frames.hop_size, window=data.stft.window)

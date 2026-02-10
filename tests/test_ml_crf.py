@@ -8,7 +8,6 @@ This file contains test for the madmom.ml.crf module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-
 from madmom.ml.crf import *
 
 eta = 0.000000000000001  # numerical stability
@@ -30,7 +29,6 @@ def _to_onehot(seq, num_states):
     oh = np.zeros((len(seq), num_states))
     oh[range(len(seq)), seq] = 1
     return oh
-
 
 OBS_SEQ_1 = _to_onehot(np.array([0, 0, 1, 0, 0, 2, 1, 0, 2, 1, 0, 1, 1, 1, 0,
                                  2, 0, 2, 0, 1, 1, 2, 0, 0, 0, 1]), 3)

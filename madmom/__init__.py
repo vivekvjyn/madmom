@@ -17,32 +17,33 @@ from __future__ import absolute_import, division, print_function
 
 import doctest
 
-from importlib.metadata import distribution
+import numpy as np
+import pkg_resources
 
 # import all packages
 from . import audio, evaluation, features, io, ml, models, processors, utils
 
 # define a version variable
-__version__ = distribution("madmom")  .version
+__version__ = pkg_resources.get_distribution("madmom").version
 
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
 
 # declare the new doctest directives
+_IGNORE_UNICODE = doctest.register_optionflag("IGNORE_UNICODE")
+doctest.IGNORE_UNICODE = _IGNORE_UNICODE
+doctest.__all__.append("IGNORE_UNICODE")
+doctest.COMPARISON_FLAGS = doctest.COMPARISON_FLAGS | _IGNORE_UNICODE
+
 _NORMALIZE_ARRAYS = doctest.register_optionflag("NORMALIZE_ARRAYS")
 doctest.NORMALIZE_ARRAYS = _NORMALIZE_ARRAYS
 doctest.__all__.append("NORMALIZE_ARRAYS")
 doctest.COMPARISON_FLAGS = doctest.COMPARISON_FLAGS | _NORMALIZE_ARRAYS
 
-_NORMALIZE_FFT = doctest.register_optionflag("NORMALIZE_FFT")
-doctest.NORMALIZE_FFT = _NORMALIZE_FFT
-doctest.__all__.append("NORMALIZE_FFT")
-doctest.COMPARISON_FLAGS = doctest.COMPARISON_FLAGS | _NORMALIZE_FFT
-
-_DoctestOutputChecker = doctest.OutputChecker
+_doctest_OutputChecker = doctest.OutputChecker
 
 
-class _OutputChecker(_DoctestOutputChecker):
+class _OutputChecker(_doctest_OutputChecker):
     """
     Output checker which enhances `doctest.OutputChecker` to compare doctests
     and computed output with additional flags.
@@ -66,7 +67,7 @@ class _OutputChecker(_DoctestOutputChecker):
         Returns
         -------
         bool
-            'True' if the output matches the expectation.
+            'True' if the output maches the expectation.
 
         """
         import re
@@ -82,15 +83,7 @@ class _OutputChecker(_DoctestOutputChecker):
             want = re.sub(r'\[ ', '[', want)
             want = re.sub(r'0\.0', '0.', want)
             want = re.sub(r'\s*,', ',', want)
-        if optionflags & _NORMALIZE_FFT:
-            # in different versions of numpy arrays, FFT results can be ±0.j
-            # and the unwrapped phase ±pi
-            got = re.sub(r'-0.j', '+0.j', got)
-            want = re.sub(r'-0.j', '+0.j', want)
-            got = re.sub(r'-3.14159', ' 3.14159', got)
-            want = re.sub(r'-3.14159', ' 3.14159', want)
-
-        super_check_output = _DoctestOutputChecker.check_output
+        super_check_output = _doctest_OutputChecker.check_output
         return super_check_output(self, want, got, optionflags)
 
 
@@ -98,4 +91,4 @@ class _OutputChecker(_DoctestOutputChecker):
 doctest.OutputChecker = _OutputChecker
 
 # keep namespace clean
-del doctest
+del pkg_resources, doctest

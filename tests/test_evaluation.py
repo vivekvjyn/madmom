@@ -7,11 +7,12 @@ This file contains tests for the madmom.evaluation module.
 
 from __future__ import absolute_import, division, print_function
 
-import math
 import unittest
+import math
 from collections import OrderedDict
 
 from madmom.evaluation import *
+
 
 DETECTIONS = np.asarray([0.99, 1.45, 2.01, 2.015, 3.1, 8.1])
 ANNOTATIONS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
@@ -24,7 +25,7 @@ class TestFindClosestMatchesFunction(unittest.TestCase):
     def test_types(self):
         matches = find_closest_matches([], [])
         self.assertIsInstance(matches, np.ndarray)
-        self.assertEqual(matches.dtype, int)
+        self.assertEqual(matches.dtype, np.int)
         self.assertIsInstance(find_closest_matches([], []), np.ndarray)
 
     def test_value(self):
@@ -45,7 +46,7 @@ class TestCalcErrorsFunction(unittest.TestCase):
     def test_types(self):
         errors = calc_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
-        self.assertEqual(errors.dtype, float)
+        self.assertEqual(errors.dtype, np.float)
 
     def test_values(self):
         # empty sequences
@@ -69,7 +70,7 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
     def test_types(self):
         errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
-        self.assertEqual(errors.dtype, float)
+        self.assertEqual(errors.dtype, np.float)
 
     def test_values(self):
         # empty sequences
@@ -269,13 +270,13 @@ class TestEvaluationClass(unittest.TestCase):
                           'fmeasure', 'accuracy'])
         # test with other values
         e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
-        tp = np.asarray([1, 2, 3], dtype=float)
+        tp = np.asarray([1, 2, 3], dtype=np.float)
         self.assertTrue(np.allclose(e.tp, tp))
-        fp = np.asarray([1.5], dtype=float)
+        fp = np.asarray([1.5], dtype=np.float)
         self.assertTrue(np.allclose(e.fp, fp))
-        tn = np.asarray([], dtype=float)
+        tn = np.asarray([], dtype=np.float)
         self.assertTrue(np.allclose(e.tn, tn))
-        fn = np.asarray([0, 3.1], dtype=float)
+        fn = np.asarray([0, 3.1], dtype=np.float)
         self.assertTrue(np.allclose(e.fn, fn))
         self.assertEqual(e.num_tp, 3)
         self.assertEqual(e.num_fp, 1)

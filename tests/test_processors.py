@@ -6,13 +6,12 @@ This file contains tests for the madmom.processors module.
 """
 
 from __future__ import absolute_import, division, print_function
-
 import tempfile
 import unittest
 
-from madmom.ml.nn import NeuralNetwork
-from madmom.models import *
 from madmom.processors import *
+from madmom.models import *
+from madmom.ml.nn import NeuralNetwork
 
 tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
@@ -42,9 +41,6 @@ class TestBufferProcessor(unittest.TestCase):
         # shift in three new values
         result = buffer(np.arange(6, 9))
         self.assertTrue(np.allclose(result, [4, 5, 6, 7, 8]))
-        # shift in six new values (bigger than buffer)
-        result = buffer(np.arange(9, 15))
-        self.assertTrue(np.allclose(result, [10, 11, 12, 13, 14]))
 
     def test_2d(self):
         buffer = BufferProcessor((5, 2), init=np.zeros((5, 2)))
@@ -72,10 +68,6 @@ class TestBufferProcessor(unittest.TestCase):
         result = buffer(np.arange(8, 14).reshape((3, -1)))
         self.assertTrue(result.shape == (5, 2))
         self.assertTrue(np.allclose(result.ravel(), np.arange(4, 14)))
-        # shift in six new values (bigger than buffer)
-        result = buffer(np.arange(14, 26).reshape((6, -1)))
-        self.assertTrue(result.shape == (5, 2))
-        self.assertTrue(np.allclose(result.ravel(), np.arange(16, 26)))
 
     def test_reset(self):
         buffer = BufferProcessor(5, init=np.ones(5))

@@ -10,12 +10,14 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from madmom.audio.filters import (MelFilterbank, BarkFilterbank)
-from madmom.audio.signal import Signal
-from madmom.audio.spectrogram import *
-from madmom.audio.stft import ShortTimeFourierTransform
 from . import AUDIO_PATH
 from .test_audio_filters import FFT_FREQS_1024, LOG_FILTERBANK_CENTER_FREQS
+
+from madmom.audio.spectrogram import *
+from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
+                                  MelFilterbank)
+from madmom.audio.stft import ShortTimeFourierTransform
+from madmom.audio.signal import Signal
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22050 = pj(AUDIO_PATH, 'sample_22050.wav')
@@ -45,19 +47,19 @@ class TestSpecFunction(unittest.TestCase):
 
     def test_types(self):
         result = spec(np.random.rand(10))
-        self.assertTrue(result.dtype == float)
+        self.assertTrue(result.dtype == np.float)
         self.assertTrue(result.shape == (10, ))
         result = spec(np.random.rand(10, 2))
-        self.assertTrue(result.dtype == float)
+        self.assertTrue(result.dtype == np.float)
         self.assertTrue(result.shape == (10, 2))
         # complex data
         data = np.random.rand(10) + 1j * np.random.rand(10)
         result = spec(data)
-        self.assertTrue(result.dtype == float)
+        self.assertTrue(result.dtype == np.float)
         self.assertTrue(result.shape == (10, ))
         data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
         result = spec(data)
-        self.assertTrue(result.dtype == float)
+        self.assertTrue(result.dtype == np.float)
         self.assertTrue(result.shape == (10, 2))
 
     def test_values(self):
@@ -178,14 +180,6 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
                                     [8.42887115, 17.98174477, 19.50165367,
                                      6.48194313, 2.96991181, 4.06280804]))
         self.assertTrue(result.shape == (281, 40))
-        # with Bark filterbank
-        result = FilteredSpectrogram(sample_file,
-                                     filterbank=BarkFilterbank,
-                                     num_bands='normal')
-        self.assertTrue(np.allclose(result[0, :6],
-                                    [16.42251968, 17.36715126, 2.81979132,
-                                     4.27050114, 3.08699131, 1.50553513]))
-        self.assertTrue(result.shape == (281, 23))
 
     def test_from_spec(self):
         spec = Spectrogram(AUDIO_PATH + '/sample.wav')
@@ -717,7 +711,7 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [[0.00056659, 0.00274373, 0.00037994,
                                       0.00031497, 0.0063823],
                                      [0.00032294, 0.00285728, 0.00023723,
-                                      0.00010553, 0.0069074]], atol=1e-04))
+                                      0.00010553, 0.0069074]]))
         self.assertTrue(np.allclose(self.sbs_50[:10, 0],
                                     [0.00108844, 0.0020613, 0.00187792,
                                      0.00173228, 0.00163516, 0.00149813,
@@ -727,18 +721,17 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [0.05326259, 0.10912816, 0.11616101,
                                      0.11595627, 0.11979639, 0.12206492,
                                      0.12836982, 0.12495992, 0.11759637,
-                                     0.10559082], atol=1e-04))
+                                     0.10559082]))
         # test fps = 10
         self.assertTrue(self.sbs_10.fps == 10)
         self.assertTrue(self.sbs_10.shape == (29, 88))
         sbs_10 = [[0.01951193, 0.01638364, 0.00384092, 0.00732366, 0.10310112],
                   [0.14484727, 0.032042, 0.00719009, 0.02043642, 0.06407038]]
-        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55], sbs_10,
-                        atol=1e-04))
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55], sbs_10))
         # test computing SemitoneBandpassSpectrogram from signal
         self.assertTrue(self.sbs_10_from_signal.shape == (29, 88))
         self.assertTrue(np.allclose(self.sbs_10_from_signal[10:12, 50:55],
-                                    sbs_10, atol=1e-04))
+                                    sbs_10))
         # test 22050 Hz sampling rate. If we use only bands above 2637 Hz,
         # no resampling is necessary and we can therefore compare with
         # smaller tolerances.
@@ -747,13 +740,12 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                 0.05898506, 0.03190501, 0.04980498, 0.07482897],
                [0.07191198, 0.07706247, 0.05581443, 0.03765683, 0.04524021,
                 0.03835757, 0.0295172, 0.04417975, 0.06682143]]
-        self.assertTrue(np.allclose(self.sbs_22050[108:110, :], tar,
-                        atol=1e-04))
+        self.assertTrue(np.allclose(self.sbs_22050[108:110, :], tar))
         # check end of signal
         tar = [9.44913489e-06, 2.15330783e-05, 1.61559697e-05, 3.66821812e-06,
                7.96367061e-06, 2.01982581e-05, 2.03380816e-06, 5.34317005e-06,
                4.13617626e-06]
-        self.assertTrue(np.allclose(self.sbs_22050[140, :], tar, atol=1e-04))
+        self.assertTrue(np.allclose(self.sbs_22050[140, :], tar))
 
     def test_compare_with_matlab_toolbox(self):
         # compare the results with the MATLAB chroma toolbox. There are

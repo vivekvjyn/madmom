@@ -12,6 +12,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from . import layers, activations
 from ...processors import Processor, ParallelProcessor, SequentialProcessor
 
 
@@ -29,34 +30,16 @@ def average_predictions(predictions):
     numpy array
         Averaged prediction.
 
-    Notes
-    -----
-    If `predictions` is a list of tuples (the output of a multi-task network),
-    the tuple's elements are averaged separately, i.e. the first elements, all
-    second elements and so on.
-
     """
-    # predictions has length 1, thus there's nothing to average
-    if len(predictions) == 1:
-        return predictions[0]
-
-    def avg(pred):
-        """Average predictions."""
-        return sum(pred) / len(pred)
-
-    # average predictions
-    # if the network is a multi-task network, it returns tuples
-    if isinstance(predictions[0], tuple):
-        # FIXME: checking for tuples may be a bit fragile
-        avg_pred = []
-        # average the tuple's elements one by one
-        for pred in list(zip(*predictions)):
-            avg_pred.append(avg(pred))
-        return tuple(avg_pred)
-    # normal network
+    # average predictions if needed
+    if len(predictions) > 1:
+        # average the predictions
+        predictions = sum(predictions) / len(predictions)
     else:
-        # average predictions
-        return avg(predictions)
+        # nothing to average since we have only one prediction
+        predictions = predictions[0]
+    # return the (averaged) predictions
+    return predictions
 
 
 class NeuralNetwork(Processor):
@@ -110,18 +93,16 @@ class NeuralNetwork(Processor):
 
         """
         # make data at least 2d (required by NN-layers)
-        if isinstance(data, np.ndarray) and data.ndim < 2:
+        if data.ndim < 2:
             data = np.array(data, subok=True, copy=False, ndmin=2)
         # loop over all layers
         for layer in self.layers:
             # activate the layer and feed the output into the next one
-            data = layer(data, reset=reset)
-        # squeeze predictions to contain only true dimensions
-        try:
-            return data.squeeze()
-        except AttributeError:
-            # multi-task networks have multiple outputs and return lists
-            return tuple([d.squeeze() for d in data])
+            data = layer.activate(data, reset=reset)
+        # ravel the predictions if needed
+        if data.ndim == 2 and data.shape[1] == 1:
+            data = data.ravel()
+        return data
 
     def reset(self):
         """

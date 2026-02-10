@@ -21,7 +21,6 @@ import numpy as np
 
 cimport numpy as np
 cimport cython
-np.import_array()
 
 from numpy.math cimport INFINITY
 
@@ -67,7 +66,7 @@ class TransitionModel(object):
     >>> tm  # doctest: +ELLIPSIS
     <madmom.ml.hmm.TransitionModel object at 0x...>
 
-    TransitionModel.from_dense will check if the supplied probabilities for
+    TransitionModel.from_dense will check if the supplied probabilties for
     each state sum to 1 (and thus represent a correct probability distribution)
 
     >>> tm = TransitionModel.from_dense([0, 1], [1, 0], [0.5, 1.0])
@@ -189,7 +188,7 @@ class TransitionModel(object):
         # check for a proper probability distribution, i.e. the emission
         # probabilities of each prev_state must sum to 1
         states = np.asarray(states)
-        prev_states = np.asarray(prev_states, dtype=int)
+        prev_states = np.asarray(prev_states, dtype=np.int)
         probabilities = np.asarray(probabilities)
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
@@ -202,7 +201,7 @@ class TransitionModel(object):
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
-        probabilities = transitions.data.astype(dtype=float)
+        probabilities = transitions.data.astype(dtype=np.float)
         # return them
         return states, pointers, probabilities
 
@@ -440,7 +439,7 @@ class HiddenMarkovModel(object):
         self.observation_model = observation_model
         if initial_distribution is None:
             initial_distribution = np.ones(transition_model.num_states,
-                                           dtype=float) / \
+                                           dtype=np.float) / \
                                    transition_model.num_states
         if not np.allclose(initial_distribution.sum(), 1):
             raise ValueError('Initial distribution is not a probability '
@@ -450,7 +449,7 @@ class HiddenMarkovModel(object):
         self._prev = self.initial_distribution.copy()
 
     def __getstate__(self):
-        # copy everything to a picklable object
+        # copy everything to a pickleable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -510,7 +509,7 @@ class HiddenMarkovModel(object):
 
         # current viterbi variables
         cdef double [::1] current_viterbi = np.empty(num_states,
-                                                     dtype=float)
+                                                     dtype=np.float)
 
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
@@ -599,7 +598,7 @@ class HiddenMarkovModel(object):
         observations : numpy array, shape (num_frames, num_densities)
             Observations to compute the forward variables for.
         reset : bool, optional
-            Reset the HMM to its initial state before computing the forward
+            Reset the HMM to its inital state before computing the forward
             variables.
 
         Returns
@@ -628,7 +627,7 @@ class HiddenMarkovModel(object):
         # forward variables
         cdef double[::1] fwd_prev = self._prev
         cdef double[:, ::1] fwd = np.zeros((num_observations, num_states),
-                                           dtype=float)
+                                           dtype=np.float)
 
         # define counters etc.
         cdef unsigned int prev_pointer, frame, state
@@ -699,7 +698,7 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] om_densities
 
         # forward variables
-        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=float)
+        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=np.float)
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.

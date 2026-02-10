@@ -10,13 +10,13 @@ This module contains note evaluation functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
-
 import numpy as np
 
 from . import (evaluation_io, MultiClassEvaluation, SumEvaluation,
                MeanEvaluation)
 from .onsets import onset_evaluation, OnsetEvaluation
 from ..io import load_notes
+
 
 # default note evaluation values
 WINDOW = 0.025
@@ -92,8 +92,8 @@ def note_onset_evaluation(detections, annotations, window=WINDOW):
 
     """
     # make sure the arrays have the correct types and dimensions
-    detections = np.asarray(detections, dtype=float)
-    annotations = np.asarray(annotations, dtype=float)
+    detections = np.asarray(detections, dtype=np.float)
+    annotations = np.asarray(annotations, dtype=np.float)
     # check dimensions
     if detections.ndim != 2 or annotations.ndim != 2:
         raise ValueError('detections and annotations must be 2D arrays')
@@ -133,9 +133,9 @@ def note_onset_evaluation(detections, annotations, window=WINDOW):
         tp_, fp_, _, fn_, err_ = onset_evaluation(det[:, 0], ann[:, 0], window)
         # convert returned arrays to lists and append the detections and
         # annotations to the correct lists
-        tp = np.vstack((tp, det[np.isin(det[:, 0], tp_)]))
-        fp = np.vstack((fp, det[np.isin(det[:, 0], fp_)]))
-        fn = np.vstack((fn, ann[np.isin(ann[:, 0], fn_)]))
+        tp = np.vstack((tp, det[np.in1d(det[:, 0], tp_)]))
+        fp = np.vstack((fp, det[np.in1d(det[:, 0], fp_)]))
+        fn = np.vstack((fn, ann[np.in1d(ann[:, 0], fn_)]))
         # append the note number to the errors
         err_ = np.vstack((np.array(err_),
                           np.repeat(np.asarray([note]), len(err_)))).T
@@ -181,8 +181,8 @@ class NoteEvaluation(MultiClassEvaluation):
     def __init__(self, detections, annotations, window=WINDOW, delay=0,
                  **kwargs):
         # convert to numpy array
-        detections = np.array(detections, dtype=float, ndmin=2)
-        annotations = np.array(annotations, dtype=float, ndmin=2)
+        detections = np.array(detections, dtype=np.float, ndmin=2)
+        annotations = np.array(annotations, dtype=np.float, ndmin=2)
         # shift the detections if needed
         if delay != 0:
             detections[:, 0] += delay
