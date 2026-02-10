@@ -370,7 +370,7 @@ def quantize_events(events, fps, length=None, shift=None):
     # quantize
     events *= fps
     # indices to be set in the quantized array
-    idx = np.unique(np.round(events).astype(np.int))
+    idx = np.unique(np.round(events).astype(np.int64))
     quantized[idx] = 1
     # return the quantized array
     return quantized
@@ -422,7 +422,7 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
         raise ValueError('notes must have at least 2 columns.')
     # split the notes into columns
     note_onsets = notes[:, 0]
-    note_numbers = notes[:, 1].astype(np.int)
+    note_numbers = notes[:, 1].astype(np.int64)
     note_offsets = np.copy(note_onsets)
     if notes.shape[1] > 2:
         note_offsets += notes[:, 2]
@@ -440,8 +440,8 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
     # init array
     quantized = np.zeros((length, num_pitches))
     # quantize onsets and offsets
-    note_onsets = np.round((note_onsets * fps)).astype(np.int)
-    note_offsets = np.round((note_offsets * fps)).astype(np.int) + 1
+    note_onsets = np.round((note_onsets * fps)).astype(np.int64)
+    note_offsets = np.round((note_offsets * fps)).astype(np.int64) + 1
     # iterate over all notes
     for n, note in enumerate(notes):
         # use only the notes which fit in the array and note number >= 0

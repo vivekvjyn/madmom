@@ -35,16 +35,16 @@ from . import evaluation_io, EvaluationMixin
 from ..io import load_chords
 
 
-CHORD_DTYPE = [('root', np.int),
-               ('bass', np.int),
-               ('intervals', np.int, (12,))]
+CHORD_DTYPE = [('root', np.int64),
+               ('bass', np.int64),
+               ('intervals', np.int64, (12,))]
 
 CHORD_ANN_DTYPE = [('start', np.float64),
                    ('end', np.float64),
                    ('chord', CHORD_DTYPE)]
 
-NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
-UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
+NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int64))
+UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int64) * -1)
 
 
 def encode(chord_labels):
@@ -244,7 +244,7 @@ def interval_list(intervals_str, given_pitch_classes=None):
 
     """
     if given_pitch_classes is None:
-        given_pitch_classes = np.zeros(12, dtype=np.int)
+        given_pitch_classes = np.zeros(12, dtype=np.int64)
     for int_def in intervals_str[1:-1].split(','):
         int_def = int_def.strip()
         if int_def[0] == '*':
@@ -305,7 +305,7 @@ def chord_intervals(quality_str):
     if list_idx != 0:
         ivs = _shorthands[quality_str[:list_idx]].copy()
     else:
-        ivs = np.zeros(12, dtype=np.int)
+        ivs = np.zeros(12, dtype=np.int64)
 
     return interval_list(quality_str[list_idx:], ivs)
 
@@ -422,7 +422,7 @@ def score_exact(det_chords, ann_chords):
     return ((ann_chords['root'] == det_chords['root']) &
             (ann_chords['bass'] == det_chords['bass']) &
             ((ann_chords['intervals'] == det_chords['intervals']).all(axis=1))
-            ).astype(np.float)
+            ).astype(np.float64)
 
 
 def reduce_to_triads(chords, keep_bass=False):

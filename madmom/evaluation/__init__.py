@@ -44,11 +44,11 @@ def find_closest_matches(detections, annotations):
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.int)
+        return np.zeros(0, dtype=np.int64)
     # if only a single annotation is given
     if len(annotations) == 1:
         # return an array as long as the detections with indices 0
-        return np.zeros(len(detections), dtype=np.int)
+        return np.zeros(len(detections), dtype=np.int64)
     # solution found at: http://stackoverflow.com/questions/8914491/
     indices = annotations.searchsorted(detections)
     indices = np.clip(indices, 1, len(annotations) - 1)
@@ -87,7 +87,7 @@ def calc_errors(detections, annotations, matches=None):
     detections = np.asarray(detections, dtype=np.float64)
     annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=np.int64)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
@@ -132,7 +132,7 @@ def calc_absolute_errors(detections, annotations, matches=None):
     detections = np.asarray(detections, dtype=np.float64)
     annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=np.int64)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
@@ -168,7 +168,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     detections = np.asarray(detections, dtype=np.float64)
     annotations = np.asarray(annotations, dtype=np.float64)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=np.int64)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')

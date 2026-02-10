@@ -198,7 +198,7 @@ def comb_filter(signal, filter_function, tau, alpha):
 
     """
     # convert tau to a integer numpy array
-    tau = np.array(tau, dtype=np.int, ndmin=1)
+    tau = np.array(tau, dtype=np.int64, ndmin=1)
     if tau.ndim != 1:
         raise ValueError('`tau` must be a 1D numpy array')
     # convert alpha to a numpy array
@@ -275,7 +275,7 @@ class CombFilterbankProcessor(Processor):
 
     def __init__(self, filter_function, tau, alpha):
         # convert tau and alpha to a numpy arrays
-        self.tau = np.array(tau, dtype=np.int, ndmin=1)
+        self.tau = np.array(tau, dtype=np.int64, ndmin=1)
         self.alpha = np.array(alpha, dtype=np.float64, ndmin=1)
         # set the filter function
         if filter_function in ['forward', feed_forward_comb_filter]:

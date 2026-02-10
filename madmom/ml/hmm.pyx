@@ -188,7 +188,7 @@ class TransitionModel(object):
         # check for a proper probability distribution, i.e. the emission
         # probabilities of each prev_state must sum to 1
         states = np.asarray(states)
-        prev_states = np.asarray(prev_states, dtype=np.int)
+        prev_states = np.asarray(prev_states, dtype=np.int64)
         probabilities = np.asarray(probabilities)
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
@@ -698,7 +698,7 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] om_densities
 
         # forward variables
-        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=np.float)
+        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=np.float64)
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.
