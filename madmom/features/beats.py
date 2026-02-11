@@ -909,7 +909,7 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
 
         """
         # init the beats to return and the offset
-        beats = np.empty(0, dtype=np.int)
+        beats = np.empty(0, dtype=np.int64)
         first = 0
         # use only the activations > threshold
         if self.threshold:
